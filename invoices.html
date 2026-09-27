@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoices</title>
+<link rel="icon" href="design/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="design/tokens.css">
+<link rel="stylesheet" href="design/base.css">
+<link rel="stylesheet" href="design/components.css">
+<style>
+@page { size: A4; margin: 0; }
+/* document-only tokens for the printed page (mirrored in the Figma "Invoice template" variables) */
+:root { --rule: #ebebeb; --rule-dark: #ebebeb; --tint: #dae4fb; --paper: #fafafa; --ls-body: 0.2pt; --ls-label: 0.3pt; }
+
+/* ---------- app layout ---------- */
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100vh; }   /* same list width as contracts.html */
+.invlist { overflow: auto; background: #fff; padding: 16px; }
+.main { position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.preview { position: relative; flex: 1; overflow: auto; padding: 16px 28px 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: #fff; }
+.preview > * { margin-left: auto; margin-right: auto; }
+.scaleBox { position: relative; flex: none; }
+.scale { transform-origin: top left; }
+.pv-tools { flex: none; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ---------- the invoice page (units in pt, 1:1 with Figma/A4) ---------- */
+.page {
+  width: 595pt; min-height: 842pt; background: #fff; color: var(--ink);
+  font-family: 'Instrument Sans', sans-serif; font-variation-settings: 'wdth' var(--wdth);
+  font-size: 9pt; line-height: 14pt; letter-spacing: var(--ls-body); font-weight: 450; display: flex; flex-direction: column;
+  border: 1px solid var(--line);
+  transition: opacity .15s ease;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.page.fading { opacity: 0; }
+.page p { margin: 0; }
+.pg-header { background: var(--paper); padding: 32pt; display: flex; justify-content: space-between; align-items: flex-start; }
+.pg-brand { display: flex; gap: 12pt; align-items: flex-start; }
+.pg-logo { height: 20pt; display: flex; align-items: center; } /* matches the 20pt company line */
+.pg-logo img { width: 21.9pt; height: 10pt; display: block; object-fit: contain; }
+.pg-brand-text { display: flex; flex-direction: column; gap: 8pt; }
+.pg-company { font-weight: 600; font-size: 16pt; line-height: 20pt; letter-spacing: 0; white-space: nowrap; }
+.kv { display: flex; flex-direction: column; gap: 2pt; font-size: 9pt; line-height: 14pt; }
+.kv-row { display: flex; align-items: flex-start; }
+.kv-row .k { color: var(--muted); white-space: nowrap; }
+.kv-row .v { flex: 1; min-width: 0; text-align: right; padding-left: 12pt; }
+.kv-row .pct { width: 57pt; text-align: right; }
+.pg-meta { width: 164pt; }
+.pg-body { padding: 32pt; display: flex; flex-direction: column; gap: 32pt; flex: 1; }
+.pg-row2 { display: flex; gap: 40pt; align-items: flex-start; }
+.pg-row2 > .block { flex: 1; min-width: 0; }
+.pg-row2 > .block.half { flex: none; width: 237.5pt; }
+.block-label { border-left: 1pt solid var(--accent); padding-left: 8pt; font-size: 7pt; line-height: 13pt; font-weight: 629; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--accent); }
+.block-data { border-left: 1pt solid var(--tint); padding: 4pt 0 4pt 8pt; display: flex; flex-direction: column; gap: 4pt; font-size: 9pt; line-height: 13pt; }
+.block-data p { white-space: pre-line; overflow-wrap: anywhere; }
+.block-data .name { font-weight: 600; }
+.block-data .gap { margin-top: 10pt; }
+.rates { display: flex; flex-direction: column; align-items: flex-end; }
+.rates .block-label { width: 100%; }
+.tbl { width: 100%; border-collapse: collapse; table-layout: auto; }
+.tbl th, .tbl td { padding-left: 16pt; text-align: right; white-space: nowrap; vertical-align: middle; font-weight: inherit; }
+.tbl .c-item { padding-left: 0; width: 100%; text-align: left; white-space: pre-line; overflow-wrap: anywhere; }
+.t-head th { padding-top: 8pt; padding-bottom: 4pt; border-bottom: 0.5pt solid var(--rule-dark); font-size: 8pt; line-height: 12pt; color: var(--muted); }
+.t-row td { padding-top: 4pt; padding-bottom: 4pt; border-bottom: 0.5pt solid var(--rule); font-size: 9pt; line-height: 14pt; }
+/* summary table: same head and row styles as the items table, half the page wide, right-aligned */
+.sum-wrap { width: 100%; display: flex; justify-content: flex-end; padding-top: 16pt; }
+.tbl.sum { width: 237.5pt; flex: none; }
+.tbl.sum .c-item { white-space: nowrap; }
+.t-total td { padding-top: 8pt; font-size: 9pt; line-height: 14pt; vertical-align: baseline; border-top: 0.5pt solid var(--rule-dark); }
+.t-total.alone td { border-top: 0; }   /* no tax: the total stands on its own, no rule above */
+.t-total td:last-child { font-weight: 700; font-size: 14pt; line-height: 14pt; }
+.pg-foot { flex: 1; display: flex; justify-content: space-between; align-items: flex-end; }
+.pg-foot .half { width: 237.5pt; }
+.sig { display: flex; flex-direction: column; align-items: center; }
+.sig img, .sig-blank { width: 111pt; height: 57pt; display: block; object-fit: contain; }
+.sig-name { border-top: 0.5pt solid var(--rule); padding-top: 4pt; text-align: center; white-space: nowrap; }
+.sig-name .n { font-weight: 600; font-size: 9pt; line-height: 14pt; color: var(--ink); }
+.sig-name .s { font-size: 8pt; line-height: 13pt; color: var(--muted); }
+
+/* in-place editing chrome (screen only) */
+.block { position: relative; }
+.page.editable .ed { cursor: text; outline: none; padding: 0 2px; margin: 0 -2px; border-radius: var(--radius); background: transparent; transition: background-color var(--t-hover); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.page.editable .ed:hover, .page.editable .ed:focus { background: var(--fill-hover); }
+.page.editable .ed:empty::before { content: '\00a0'; }
+.page.editable .c-item > .ed { display: block; min-height: 1lh; }
+.page.editable .ed:focus { outline: none; caret-color: var(--accent); }
+.page .blk-chip, .page .ghost, .page .model-tabs, .page .row-x, .page .t-add, .page .pg-chips { display: none; }
+.page.editable .blk-chip { display: inline-flex; position: absolute; top: 0; right: 0; font: inherit; font-size: 9pt; line-height: 14pt; padding: 0; border: 0; background: none; color: var(--ink-secondary); cursor: pointer; opacity: 0; transition: opacity var(--t-hover), color var(--t-hover); letter-spacing: inherit; }
+/* secondary: hidden until the block is hovered, dimmed while it is, full on its own hover, never underlined */
+.page.editable .block:hover .blk-chip { opacity: 1; }
+.page.editable .block:hover .blk-chip:hover { color: var(--ink-primary); text-decoration: underline; text-underline-offset: var(--underline); }
+.page.editable .ghost { display: inline-flex; font: inherit; font-size: 9pt; line-height: 14pt; letter-spacing: inherit; color: var(--ink-secondary); background: none; border: 0; padding: 0; cursor: pointer; opacity: 0; transition: opacity var(--t-hover), color var(--t-hover); }
+.page.editable:hover .ghost, .page.editable .ghost.show { opacity: 1; }
+.page.editable .ghost:hover { color: var(--ink-primary); text-decoration: underline; text-underline-offset: var(--underline); }
+.ghost-host { display: flex; align-items: flex-start; }
+.pg-meta { position: relative; }
+.page.editable .ed[data-kind=date] { cursor: pointer; }
+.rates { position: relative; }
+.page.editable .model-tabs { display: inline-flex; gap: 0.35em; margin-left: 12pt; vertical-align: top; height: 13pt; align-items: center; opacity: 0; }
+.page.editable .model-tabs > * + *::before { content: '/'; display: inline-block; color: var(--line-strong); margin-right: 0.35em; pointer-events: none; }
+.page.editable .rates:hover .model-tabs { opacity: 1; }
+.page.editable .model-tabs button { font: inherit; font-size: 9pt; line-height: 13pt; letter-spacing: var(--ls-body); font-weight: 450; text-transform: none; padding: 0; border: 0; background: transparent; color: var(--ink-secondary); transition: color var(--t-hover); cursor: pointer; }
+.page.editable .model-tabs button:hover, .page.editable .model-tabs button.on { color: var(--ink-primary); }
+.page.editable .model-tabs button.on { pointer-events: none; cursor: default; }
+.page.editable .t-row::after { content: ''; position: absolute; left: 100%; top: 0; bottom: 0; width: 24pt; z-index: 0; }
+.t-row { position: relative; }
+.page.editable .row-x { display: flex; align-items: center; justify-content: center; position: absolute; right: -20pt; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; line-height: 1; border: 0; background: none; color: var(--ink-secondary); cursor: pointer; opacity: 0; padding: 0; z-index: 1; transition: opacity var(--t-hover), color var(--t-hover); }
+.page.editable .row-x:hover { opacity: 1; color: var(--ink-primary); }
+.page.editable .t-row:hover .row-x { opacity: 1; }
+.page.editable .t-row:hover .row-x:hover { color: var(--ink-primary); }
+.page.editable .t-add { display: block; position: absolute; left: 0; top: 100%; padding: 4pt 0; line-height: 16pt; opacity: 0; }
+.page.editable .rates:hover .t-add { opacity: 1; }
+.t-add-host { position: relative; width: 100%; }
+.page.editable .t-add .ghost { padding: 0; line-height: 16pt; }
+
+@media print {
+  html, body { background: #fff; height: auto; overflow: visible; }
+  .blk-chip, .ghost, .ghost-host, .model-tabs, .row-x, .t-add, .pg-chips, .pv-tools, .pop, .toast, .banner, dialog { display: none !important; }
+  .ed { outline: none !important; background: none !important; padding: 0 !important; margin: 0 !important; }
+  .app { display: block; height: auto; }
+  .invlist { display: none !important; }
+  .main { display: block; overflow: visible; height: auto; }
+  .preview { display: block !important; padding: 0; overflow: visible; }
+  .scaleBox { width: auto !important; height: auto !important; }
+  .scale { transform: none !important; }
+  .page { border: 0; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="invlist" id="invlist"></aside>
+
+  <main class="main">
+    <div class="preview" id="preview">
+      <div class="pv-tools" id="pvTools">
+        <span id="pvSeg"></span>
+        <span class="actions">
+          <button class="btn" id="btnDel">Delete</button>
+          <button class="btn secondary" id="btnDup">Duplicate</button>
+          <button class="btn secondary" id="btnPdf" title="Save the invoice and download it as a PDF">Download</button>
+          <button class="btn" id="btnSave">Save invoice</button>
+        </span>
+      </div>
+      <div class="scaleBox" id="scaleBox"><div class="scale" id="scale"><div class="page" id="page"></div></div></div>
+    </div>
+  </main>
+
+</div>
+<script src="design/ui.js"></script>
+<script src="shared/dataset.js"></script>
+<script src="design/store.js"></script>
+<script>dataset.loadFiles('invoices', 'parties');</script>
+<script src="shared/parties.js"></script>
+<script>
+/* ======================= basics ======================= */
+const LS_KEY = dataset.key('scs-invoices-own');   // only the user's own data is saved; the sample set lives in the seeds (shared/dataset.js)
+let disk = null; // folder store, attached after first render
+const GST_RATE = 18;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+// Local-date helpers. toISOString() would shift to UTC and lose a day in IST.
+const { isoLocal, today, addDays, fmtDate, esc, field } = ui;
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const clone = o => JSON.parse(JSON.stringify(o));
+const norm = s => String(s || '').trim().toLowerCase();
+
+// GSTIN state codes (first two digits)
+const STATE_CODES = { '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh', '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan', '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh', '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura', '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand', '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat', '26': 'Dadra and Nagar Haveli and Daman and Diu', '27': 'Maharashtra', '29': 'Karnataka', '30': 'Goa', '31': 'Lakshadweep', '32': 'Kerala', '33': 'Tamil Nadu', '34': 'Puducherry', '35': 'Andaman and Nicobar Islands', '36': 'Telangana', '37': 'Andhra Pradesh', '38': 'Ladakh' };
+const stateFromGstin = g => STATE_CODES[String(g || '').trim().slice(0, 2)] || '';
+
+// Amounts always print with the ISO code ("INR 40,800"); INR groups in lakhs, the rest in thousands.
+const CURRENCIES = {
+  INR: { name: 'INR (Indian rupee)', code: 'INR', grouping: 'indian' },
+  USD: { name: 'USD (US dollar)', code: 'USD', grouping: 'western' },
+  EUR: { name: 'EUR (Euro)', code: 'EUR', grouping: 'western' },
+  GBP: { name: 'GBP (Pound sterling)', code: 'GBP', grouping: 'western' },
+};
+const curKey = c => (c && CURRENCIES[c.code]) ? c.code : 'INR';
+// Any ISO code is allowed; INR groups in lakhs, everything else in thousands.
+const curFor = code => { code = String(code || 'INR').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'INR'; return CURRENCIES[code] ? { ...CURRENCIES[code] } : { name: code, code, grouping: 'western' }; };
+
+/* Pricing models = which columns the cost table shows and how a row's amount is computed. */
+// Models with `keys` link three numbers. Whichever of the three you edited least recently is the one that gets recalculated
+// (r.edited remembers the order), so the two you typed last are always preserved.
+const MODELS = {
+  hourly: { name: 'Billed hours × hourly rate', tab: 'Hourly', keys: ['qty', 'rate', 'amount'], defaultEdited: ['rate', 'qty'], // untouched items: amount is derived; editing the amount changes the rate, hours stay
+    cols: [{ key: 'rate', label: c => `Hourly rate (${c.code})`, w: 73, type: 'number', render: (r, c) => fmtNum(num(r.rate), c.grouping, 'always') },
+           { key: 'qty', label: 'Billed hours', w: 64, type: 'number', render: r => fmtNum(num(r.qty), 'western', 'auto') }],
+    solve: (r, k) => { if (k === 'amount') r.amount = round2(num(r.qty) * num(r.rate)); else if (k === 'qty') r.qty = num(r.rate) ? round2(num(r.amount) / num(r.rate)) : 0; else r.rate = num(r.qty) ? round2(num(r.amount) / num(r.qty)) : 0; } },
+  weekly: { name: 'Weeks × weekly rate', tab: 'Weekly', keys: ['qty', 'rate', 'amount'], defaultEdited: ['rate', 'qty'],
+    cols: [{ key: 'rate', label: c => `Weekly rate (${c.code})`, w: 73, type: 'number', render: (r, c) => fmtNum(num(r.rate), c.grouping, 'always') },
+           { key: 'qty', label: 'Billed weeks', w: 64, type: 'number', render: r => fmtNum(num(r.qty), 'western', 'auto') }],
+    solve: (r, k) => { if (k === 'amount') r.amount = round2(num(r.qty) * num(r.rate)); else if (k === 'qty') r.qty = num(r.rate) ? round2(num(r.amount) / num(r.rate)) : 0; else r.rate = num(r.qty) ? round2(num(r.amount) / num(r.qty)) : 0; } },
+  share: { name: 'Share of a final project cost', tab: 'Share', keys: ['base', 'share', 'amount'], defaultEdited: ['base', 'share'], // editing the amount changes the project cost, share stays
+    cols: [{ key: 'base', label: 'Final project cost', w: 73, type: 'number', render: (r, c) => fmtNum(num(r.base), c.grouping, 'always') },
+           { key: 'share', label: 'Share', w: 64, type: 'number', render: r => fmtPct(r.share, 0) }],
+    solve: (r, k) => { if (k === 'amount') r.amount = round2(num(r.base) * num(r.share) / 100); else if (k === 'base') r.base = num(r.share) ? round2(num(r.amount) / (num(r.share) / 100)) : 0; else r.share = num(r.base) ? round2(num(r.amount) / num(r.base) * 100) : 0; } },
+};
+// Note that `key` was just edited, then recompute the field edited longest ago.
+function markEdited(r, model, key) {
+  const M = MODELS[model]; if (!M?.keys) return;
+  r.edited = (r.edited || []).filter(k => k !== key && M.keys.includes(k)); r.edited.push(key);
+  recalc(r, model);
+}
+function derivedKey(r, model) { const M = MODELS[model]; if (!M?.keys) return null; const ed = r.edited || []; return M.keys.filter(k => !ed.includes(k)).concat(ed.filter(k => M.keys.includes(k)))[0]; }
+function recalc(r, model) { const M = MODELS[model]; if (!M?.keys) return; M.solve(r, derivedKey(r, model)); }
+const itemAmount = (r, model) => { const rr = { ...r }; recalc(rr, model); return num(rr.amount); };
+
+/* ======================= seed data ======================= */
+const SEED = {   // mock data: every name, number and address here is made up. Clients and issuers live in shared/parties.js.
+  banks: [
+    { id: 'bank-example-co', label: 'Example Bank (company)', paymentMethod: '', rows: [
+      { label: 'Company name', value: 'Northwind Design Studio' }, { label: 'Acc. holder name', value: 'Alex Rao' }, { label: 'Acc. number', value: '000123456789' },
+      { label: 'IFSC Code', value: 'EXMP0001234' }, { label: 'SWIFT Code', value: 'EXMPINBBXXX' }, { label: 'Bank Name', value: 'Example Bank' }] },
+    { id: 'bank-example', label: 'Example Bank (personal)', paymentMethod: 'Bank transfer', rows: [
+      { label: 'Name', value: 'Alex Rao' }, { label: 'Account number', value: '000987654321' }, { label: 'IFSC Code', value: 'EXMP0001234' },
+      { label: 'SWIFT Code', value: 'EXMPINBBXXX' }, { label: 'Bank Name', value: 'Example Bank' }] },
+    { id: 'bank-sample', label: 'Sample Bank', paymentMethod: 'Bank transfer (via a payroll provider)', rows: [
+      { label: 'Name', value: 'Alex Rao' }, { label: 'Account number', value: '111122223333' }, { label: 'IFSC Code', value: 'SMPL0000001' },
+      { label: 'SWIFT Code', value: 'SMPLINBB001' }, { label: 'Bank Name', value: 'Sample Bank' }] },
+  ],
+};
+// A snapshot is the profile's data copied into the invoice, so later profile edits don't rewrite old invoices.
+const snapshot = p => { const { id, ...rest } = clone(p); rest.profileId = id; return rest; };
+function seedInvoices() {
+  const I = id => snapshot(parties.SEED.issuers.find(x => x.id === id));
+  const B = id => snapshot(SEED.banks.find(x => x.id === id));
+  const C = id => snapshot(parties.SEED.clients.find(x => x.id === id));
+  const cur = k => ({ ...CURRENCIES[k] });
+  const base = n => ({ id: 'seed-' + n, additional: '', note: '', createdAt: Date.now(), updatedAt: Date.now() });
+  return [
+    { ...base(1), number: 'E2026-01', series: 'E', issueDate: '2026-03-06', dueDate: '2026-04-05', client: C('cl-acme'), issuer: I('iss-mh'), bank: B('bank-example'),
+      currency: cur('GBP'), model: 'fixed', items: [{ desc: 'Product design and creative support', hsn: '998314', rateText: 'Fixed amount', amount: 4200 }] },
+    { ...base(2), number: 'E2025-01', series: 'E', issueDate: '2025-05-14', dueDate: '2025-06-13', client: C('cl-acme'), issuer: I('iss-mh'), bank: B('bank-example'),
+      currency: cur('GBP'), model: 'fixed', items: [{ desc: 'Product design and creative support', hsn: '998314', rateText: 'Fixed amount', amount: 5600 }, { desc: 'Reimbursement', hsn: '-', rateText: 'Fixed amount', amount: 90 }] },
+    { ...base(3), number: 'D2026-03', series: 'D', issueDate: '2026-09-11', dueDate: '2026-10-11', client: C('cl-riya'), issuer: I('iss-ka'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'share', items: [{ desc: 'Product design for a portfolio app', hsn: '998314', base: 70000, share: 50 }] },
+    { ...base(4), number: 'D2026-02', series: 'D', issueDate: '2026-07-30', dueDate: '2026-08-29', client: C('cl-bluebird'), issuer: I('iss-ka'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'hourly', items: [{ desc: 'Product design for the Atlas web app', hsn: '998314', rate: 5000, qty: 80 }] },
+    { ...base(5), number: 'D2026-01', series: 'D', issueDate: '2026-05-04', dueDate: '2026-05-19', client: C('cl-orbit'), issuer: I('iss-mh'), bank: { ...B('bank-sample'), paymentMethod: 'Bank transfer' },
+      currency: cur('INR'), model: 'fixed', additional: 'Total fixed compensation: ₹1,50,000 + 18% GST\n\nPayment breakdown: 30% + 50% + 20%',
+      items: [{ desc: 'Product design & Design support\n(Design system)', hsn: '998314', rateText: '30%', amount: 45000 }] },
+    { ...base(6), number: 'E2026-02', series: 'E', issueDate: '2026-06-02', dueDate: '2026-07-02', client: C('cl-harbor'), issuer: I('iss-mh'), bank: { ...B('bank-sample'), paymentMethod: 'International transfer' },
+      currency: cur('USD'), model: 'hourly', additional: 'May 2, 2026 - June 1, 2026\n\nMonth of service: May', note: 'Please transfer the fee to the account above.',
+      items: [{ desc: 'Product design and creative support', hsn: '998314', qty: 20, rate: 65 }] },
+    // 2025
+    { ...base(7), number: 'D2025-01', series: 'D', issueDate: '2025-01-20', dueDate: '2025-02-19', client: C('cl-bluebird'), issuer: I('iss-ka'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'hourly', items: [{ desc: 'Product design for the Atlas web app, discovery', hsn: '998314', rate: 4500, qty: 60 }] },
+    { ...base(8), number: 'D2025-02', series: 'D', issueDate: '2025-03-18', dueDate: '2025-04-02', client: C('cl-orbit'), issuer: I('iss-mh'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'share', items: [{ desc: 'Storefront redesign, first milestone', hsn: '998314', base: 120000, share: 50 }] },
+    { ...base(9), number: 'D2025-03', series: 'D', issueDate: '2025-06-25', dueDate: '2025-07-25', client: C('cl-riya'), issuer: I('iss-mh'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'weekly', items: [{ desc: 'Design support for a portfolio app', hsn: '998314', rate: 30000, qty: 4 }] },
+    { ...base(10), number: 'E2025-02', series: 'E', issueDate: '2025-08-12', dueDate: '2025-09-11', client: C('cl-lumen'), issuer: I('iss-mh'), bank: B('bank-sample'),
+      currency: cur('USD'), model: 'hourly', items: [{ desc: 'Product design for the checkout flow', hsn: '998314', rate: 60, qty: 32 }] },
+    { ...base(11), number: 'D2025-04', series: 'D', issueDate: '2025-09-30', dueDate: '2025-10-30', client: C('cl-bluebird'), issuer: I('iss-ka'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'hourly', items: [{ desc: 'Product design for the Atlas web app, interface design', hsn: '998314', rate: 4800, qty: 72 }] },
+    { ...base(12), number: 'E2025-03', series: 'E', issueDate: '2025-10-15', dueDate: '2025-11-14', client: C('cl-harbor'), issuer: I('iss-mh'), bank: B('bank-sample'),
+      currency: cur('USD'), model: 'weekly', items: [{ desc: 'Design sprint for the course builder', hsn: '998314', rate: 1500, qty: 3 }] },
+    { ...base(13), number: 'D2025-05', series: 'D', issueDate: '2025-12-10', dueDate: '2025-12-25', client: C('cl-orbit'), issuer: I('iss-mh'), bank: B('bank-example-co'),
+      currency: cur('INR'), model: 'share', items: [{ desc: 'Storefront redesign, final milestone', hsn: '998314', base: 120000, share: 50 }] },
+  ];
+}
+
+/* ======================= state ======================= */
+// state.invoices = saved history. state.drafts = new invoices not yet saved. state.edits = working copies of saved
+// invoices with pending changes, keyed by id. state.currentId points at whichever the editor and preview show.
+let state;
+// One-time cleanup: remove everything saved under earlier storage keys, including the mock data that used to be saved.
+// Your own data now lives under the -own keys (see shared/dataset.js); the sample data is never saved at all.
+try { if (!localStorage.getItem('scs-cleanup-2')) { ['scs-invoices-v1', 'scs-invoices-v2', 'scs-contracts-v1', 'scs-invoices-demo', 'scs-contracts-demo', 'scs-parties', 'scs-open-sections'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('scs-cleanup-2', '1'); } } catch (e) {}
+function load() { loadOwn(); sharedParties(state); }
+// Clients and issuers are shared with contracts.html (shared/parties.js); older saves kept them here and are merged in.
+function sharedParties(s) {
+  parties.bind(s);
+  for (const c of s.clients) { if (!c.currency) c.currency = 'INR'; if (!c.state && c.gstin) c.state = stateFromGstin(c.gstin); if (!c.country) c.country = 'India'; }
+}
+function loadOwn() {
+  // the sample data set: seeds every time, never read from or written to storage
+  if (dataset.mock) { state = { banks: clone(SEED.banks), invoices: seedInvoices(), drafts: [], edits: {}, currentId: null }; migrateModels(state); state.currentId = state.invoices[0].id; return; }
+  // the data folder's own file (data/invoices.js) is the source; the browser buffer wins only if it is newer
+  const file = window.__scs?.invoices || null, buf = dataset.buffer.read(LS_KEY);
+  const src = buf && (!file || (buf.savedAt || 0) > (file.savedAt || 0)) ? buf : file;
+  if (src) { state = clone(src); migrateWorking(state); migrateModels(state); return; }
+  state = { banks: clone(SEED.banks), invoices: [], drafts: [], edits: {}, currentId: null };   // your own set starts empty
+}
+// Older saves had a single state.working = { inv, savedId }.
+function migrateWorking(s) {
+  if (s.drafts) return;
+  s.drafts = []; s.edits = {}; s.currentId = null;
+  const w = s.working; delete s.working;
+  if (!w?.inv) return;
+  if (w.savedId) { s.currentId = w.savedId; const saved = s.invoices.find(i => i.id === w.savedId); if (saved && JSON.stringify(saved) !== JSON.stringify(w.inv)) s.edits[w.savedId] = w.inv; }
+  else { s.drafts.push(w.inv); s.currentId = w.inv.id; }
+}
+// Models removed on 2026-09-12: map saved invoices onto the nearest remaining one.
+function migrateModels(s) {
+  const all = [...(s.invoices || []), ...(s.drafts || []), ...Object.values(s.edits || {})];
+  for (const inv of all) {
+    if (inv.model === 'hourlyRate') inv.model = 'hourly';
+    // fixed-amount invoices become a 100% share of the amount, which prints the same total
+    if (inv.model === 'plain' || inv.model === 'percentage' || inv.model === 'fixed' || !MODELS[inv.model]) { inv.model = 'share'; for (const r of inv.items) { if (r.base == null) { r.base = num(r.amount); r.share = 100; r.edited = ['base', 'share']; } } }
+    if (inv.dueDays === undefined) inv.dueDays = inferDueDays(inv);
+    inv.currency = curFor(inv.currency?.code);
+    for (const r of inv.items) { const M = MODELS[inv.model]; if (M?.keys && !r.edited) r.edited = [...M.defaultEdited]; recalc(r, inv.model); }
+  }
+  for (const c of (s.clients || [])) if (!c.currency) c.currency = 'INR';
+}
+function save() {
+  if (dataset.mock) return;   // nothing in the sample data set is saved
+  // drop working copies that match the saved version, so `edits` only holds real changes
+  for (const [id, e] of Object.entries(state.edits)) { const sv = state.invoices.find(i => i.id === id); if (!sv || printable(sv) === printable(e)) delete state.edits[id]; }
+  state.savedAt = Date.now();
+  // the data folder is the home for this; the browser only buffers it until the folder copy is written
+  dataset.buffer.through(LS_KEY, state, disk ? disk.save() : false);
+  parties.save();   // writes only if a client or issuer changed
+}
+const draftOf = id => state.drafts.find(d => d.id === id) || null;
+const savedById = id => state.invoices.find(i => i.id === id) || null;
+const savedOf = () => savedById(state.currentId);
+// the editable object for the current invoice: the draft itself, or a lazily created working copy of the saved one
+const working = () => { const d = draftOf(state.currentId); if (d) return d; const sv = savedOf(); if (!sv) return null; if (!state.edits[sv.id]) state.edits[sv.id] = clone(sv); return state.edits[sv.id]; };
+// Only what prints counts as a change: bookkeeping (remembered numbers, edit order, timestamps) is ignored.
+const printable = inv => { const c = clone(inv); delete c.numbers; delete c.updatedAt; delete c.savedAt; for (const r of c.items || []) delete r.edited; return JSON.stringify(c); };
+const isDirtyId = id => draftOf(id) ? true : !!(state.edits[id] && savedById(id) && printable(state.edits[id]) !== printable(savedById(id)));
+const isDirty = () => isDirtyId(state.currentId);
+
+/* ======================= tax and series rules ======================= */
+const isExport = inv => norm(inv.client?.country) !== 'india';
+const deriveSeries = inv => isExport(inv) ? 'E' : 'D';
+function deriveTax(inv) {
+  if (isExport(inv)) return { kind: 'export', why: `Client is outside India (${inv.client.country || 'country not set'}), so this is an export invoice: no GST, no tax row.`, rows: [] };
+  const a = norm(inv.client.state), b = norm(inv.issuer.state);
+  if (!a || !b) return { kind: 'unknown', why: `Set the state on ${!a ? 'the client' : 'the issuer'} to work out CGST/SGST vs IGST. Defaulting to IGST ${GST_RATE}%.`, rows: [{ label: 'IGST (Tax)', pct: GST_RATE }] };
+  if (a === b) return { kind: 'intra', why: `Both parties are in ${inv.client.state}, so CGST ${GST_RATE / 2}% + SGST ${GST_RATE / 2}%.`, rows: [{ label: 'CGST (Tax)', pct: GST_RATE / 2 }, { label: 'SGST (Tax)', pct: GST_RATE / 2 }] };
+  return { kind: 'inter', why: `${inv.issuer.state} to ${inv.client.state} is inter-state, so IGST ${GST_RATE}%.`, rows: [{ label: 'IGST (Tax)', pct: GST_RATE }] };
+}
+// Keep the series and number in step with the client's country, but leave hand-typed numbers alone.
+function syncSeries(inv) {
+  if (!isExport(inv)) inv.currency = curFor('INR');
+  const s = deriveSeries(inv);
+  if (inv.series === s) return false;
+  const wasAuto = !inv.number || new RegExp('^' + inv.series + '\\d{4}-\\d+$').test(inv.number);
+  inv.numbers = inv.numbers || {}; if (inv.number) inv.numbers[inv.series] = inv.number;
+  inv.series = s;
+  if (wasAuto) inv.number = inv.numbers[s] || nextNumber(s, +(inv.issueDate || '').slice(0, 4) || new Date().getFullYear(), inv.id);
+  return true;
+}
+
+/* ======================= formatting and totals ======================= */
+function fmtNum(n, grouping = 'indian', decimals = 'auto') {
+  const neg = n < 0; n = Math.abs(n);
+  let [int, dec] = n.toFixed(2).split('.');
+  if (grouping === 'indian') {
+    const last3 = int.slice(-3), rest = int.slice(0, -3);
+    int = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3;
+  } else {
+    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  const showDec = decimals === 'always' || (decimals === 'auto' && dec !== '00');
+  return (neg ? '-' : '') + int + (showDec ? '.' + dec : '');
+}
+const fmtMoney = (n, c, decimals = 'always') => `${c.code} ${fmtNum(n, c.grouping, decimals)}`;
+const fmtSigned = (n, c) => (n < 0 ? '-' : '+') + fmtMoney(Math.abs(n), c);
+const fmtPct = (v, d = 2) => `${num(v).toFixed(d)}%`;
+const amountHeader = c => `Amount (${c.code})`;
+
+// Work backwards from a wanted total: strip the tax, then scale every item so they add up.
+function setTotal(inv, wantTotal) {
+  const rate = deriveTax(inv).rows.reduce((s, t) => s + t.pct, 0);
+  const target = round2(wantTotal / (1 + rate / 100));
+  const amt = r => itemAmount(r, inv.model);
+  const cur = inv.items.reduce((s, r) => s + amt(r), 0);
+  // setting an amount counts as editing it, so the linked field edited longest ago is what gives way
+  const apply = (r, a) => { r.amount = round2(a); markEdited(r, inv.model, 'amount'); };
+  if (!inv.items.length) inv.items.push({ desc: 'Product Design & Creative Support', hsn: '998314', rateText: 'Fixed amount', amount: 0 });
+  if (cur > 0) inv.items.forEach(r => apply(r, amt(r) * target / cur));
+  else { inv.items.forEach(r => apply(r, 0)); apply(inv.items[0], target); }
+  const got = inv.items.reduce((s, r) => s + amt(r), 0);
+  if (Math.abs(got - target) >= 0.005) apply(inv.items[0], amt(inv.items[0]) + (target - got));
+}
+function compute(inv) {
+  const items = inv.items.map(r => ({ ...r, _amt: round2(itemAmount(r, inv.model)) }));
+  const subtotal = round2(items.reduce((s, r) => s + r._amt, 0));
+  const tax = deriveTax(inv);
+  const taxRows = tax.rows.map(t => ({ ...t, amt: round2(subtotal * t.pct / 100) }));
+  const exact = round2(subtotal + taxRows.reduce((s, t) => s + t.amt, 0));
+  const total = Math.round(exact);
+  const rounding = round2(total - exact); // shown as its own line when the total had paise
+  return { items, subtotal, taxRows, exact, rounding, total, tax };
+}
+
+/* ======================= invoice page ======================= */
+function renderPage() {
+  const inv = working();
+  const page = document.getElementById('page');
+  if (!inv) { ensureWorking(); return renderPage(); }
+  const c = inv.currency, M = MODELS[inv.model] || MODELS.share, { items, subtotal, taxRows, rounding, total } = compute(inv);
+  // ed() marks a printed value as editable in place: data-edit is the path into the invoice, data-kind how to edit it
+  const editable = pageEditable();
+  const ed = (path, kind, html, cls = '') => `<span class="ed ${cls}" data-edit="${path}" data-kind="${kind}"${editable && kind !== 'date' ? ' contenteditable="plaintext-only" spellcheck="false"' : ''}>${html}</span>`;
+  const curChips = '';
+  const modelTabs = `<span class="model-tabs">${Object.entries(MODELS).map(([k, m]) => `<button type="button" data-model="${k}" class="${inv.model === k ? 'on' : ''}">${m.tab}</button>`).join('')}</span>`;
+  const kv = rows => `<div class="kv">${rows.map(([k, v, path, kind]) => `<div class="kv-row"><span class="k">${esc(k)}</span><span class="v">${path ? ed(path, kind, esc(v)) : esc(v)}</span></div>`).join('')}</div>`;
+  const chip = (kind, tabs) => `<button class="blk-chip" data-pick="${kind}" data-tabs="${tabs || ''}" type="button">Change</button>`;
+  const ghost = (key, label) => `<button class="ghost" data-add="${key}" type="button">+ ${label}</button>`;
+  const cl = inv.client, is = inv.issuer;
+  const emptyLink = (kind, label) => `<button type="button" class="ghost show" data-pick="${kind}">${label}</button>`;
+  const clientLines = !cl.name ? emptyLink('clients', 'Add client') : [
+    `<p class="name">${esc(cl.name)}</p>`,
+    cl.address ? `<p>${esc(cl.address)}</p>` : '',
+    cl.gstin ? `<p class="gap">GSTIN: ${esc(cl.gstin)}</p>` : '',
+    cl.email ? `<p>Email : ${esc(cl.email)}</p>` : '',
+  ].join('');
+  const issuerLines = !is.company ? emptyLink('issuers', 'Add issuer') : [
+    `<p class="name">${esc(is.company)}</p>`,
+    is.address ? `<p>${esc(is.address)}</p>` : '',
+    is.email ? `<p>Email : ${esc(is.email)}</p>` : '',
+    is.phone ? `<p>Contact : ${esc(is.phone)}</p>` : '',
+  ].join('');
+  const bankRows = (inv.bank.rows || []).filter(r => r.label || r.value).map(r => [r.label, r.value]);
+  if (inv.bank.paymentMethod) bankRows.push(['Payment method', inv.bank.paymentMethod]);
+  const cols = M.cols.map(col => ({ ...col, _label: typeof col.label === 'function' ? col.label(c) : col.label }));
+  const head = `<tr class="t-head"><th class="c-item">Item</th><th>HSN/SAC</th>${cols.map(col => `<th>${esc(col._label)}</th>`).join('')}<th>${esc(amountHeader(c))}</th></tr>`;
+  const rows = items.map((r, i) => `<tr class="t-row"><td class="c-item"><button type="button" class="row-x" data-remove-item="${i}" title="Remove item"><svg viewBox="0 0 256 256" fill="currentColor" width="16" height="16"><path d="${ICONS.x}"/></svg></button>${ed(`items.${i}.desc`, 'multi', esc(r.desc))}</td><td>${ed(`items.${i}.hsn`, 'text', esc(r.hsn), 'r')}</td>${cols.map(col => `<td>${ed(`items.${i}.${col.key}`, col.type === 'number' ? 'num' : 'text', esc(col.render(r, c)), 'r')}</td>`).join('')}<td>${ed(`items.${i}.amount`, 'num', fmtNum(r._amt, c.grouping, 'always'), 'r')}</td></tr>`).join('');
+  // subtotal, tax and total: their own small table with headers, right-aligned under the items
+  const sumRow = (label, pct, value, cls = '') => `<tr class="t-row ${cls}"><td class="c-item">${esc(label)}</td><td>${pct}</td><td>${value}</td></tr>`;
+  const taxed = taxRows.some(t => t.pct > 0);   // with no tax, the subtotal would just repeat the total
+  const sumTable = `<table class="tbl sum">${!taxed ? '' : `<tr class="t-head"><th class="c-item">Summary</th><th>Rate</th><th>${esc(amountHeader(c))}</th></tr>` + [
+    sumRow('Subtotal', '', esc(fmtNum(subtotal, c.grouping, 'always'))),
+    ...taxRows.map(t => sumRow(t.label, fmtPct(t.pct), t.pct === 0 ? '—' : esc(fmtNum(t.amt, c.grouping, 'always')))),
+    rounding ? sumRow('Rounding', '', esc(fmtSigned(rounding, c))) : '',
+  ].join('')}<tr class="t-total${taxed ? '' : ' alone'}"><td class="c-item">Total</td><td></td><td>${ed('total', 'total', esc(fmtMoney(total, c, 'never')), 'r')}</td></tr></table>`;
+
+  page.classList.toggle('editable', editable);
+  const caret = `<svg class="caret-b" viewBox="0 0 256 256" fill="currentColor" width="12" height="12"><path d="${ICONS['caret-down-bold']}"/></svg>`;
+  document.getElementById('pvSeg').innerHTML = `<span class="tabs">${[['D', 'Domestic'], ['E', 'Export']].map(([k, l]) => `<button type="button" data-series="${k}" class="${inv.series === k ? 'on' : ''}">${l}</button>`).join('')}</span>`;
+  page.innerHTML = `
+    <div class="pg-header">
+      <div class="pg-brand">
+        <div class="pg-logo">${ui.imgOf(is, 'logo', DEFAULT_LOGO) ? `<img src="${esc(ui.imgOf(is, 'logo', DEFAULT_LOGO))}" alt="">` : ''}</div>
+        <div class="pg-brand-text">
+          <div class="pg-company">${esc(is.company)}</div>
+          ${kv([['GSTIN', is.gstin], ['PAN', is.pan]].filter(x => x[1]))}
+        </div>
+      </div>
+      <div class="pg-meta">${kv([['Invoice No', inv.number, 'number', 'text'], ['Issue Date', fmtDate(inv.issueDate), 'issueDate', 'date'], ['Due Date', fmtDate(inv.dueDate), 'dueDate', 'date']])}</div>
+    </div>
+    <div class="pg-body">
+      <div class="pg-row2">
+        <div class="block">${chip('clients')}<div class="block-label">Bill to</div><div class="block-data">${clientLines}</div></div>
+        <div class="block">${chip('issuers')}<div class="block-label">Service from</div><div class="block-data">${issuerLines}</div></div>
+      </div>
+      <div class="pg-row2">
+        <div class="block half">${chip('banks')}<div class="block-label">Payment details</div><div class="block-data">${bankRows.length ? kv(bankRows) : emptyLink('banks', 'Add bank account')}</div></div>
+      </div>
+      <div class="rates">
+        <div class="block-label">Cost breakdown${modelTabs}<span class="label-tools">${curChips}</span></div>
+        <div class="t-add-host"><table class="tbl">${head}${rows || `<tr class="t-row"><td class="c-item" colspan="${3 + cols.length}"><button type="button" class="ghost show" data-add-item>Add item</button></td></tr>`}</table><div class="t-add"><button type="button" class="ghost" data-add-item>Add item</button></div></div>
+        <div class="sum-wrap">${sumTable}</div>
+      </div>
+      <div class="pg-foot">
+        <div class="half"></div>
+        <div class="sig">${ui.imgOf(is, 'signature', DEFAULT_SIGNATURE) ? `<img src="${esc(ui.imgOf(is, 'signature', DEFAULT_SIGNATURE))}" alt="">` : '<div class="sig-blank"></div>'}<div class="sig-name"><div class="n">${esc(is.signatory || '')}</div><div class="s">On behalf of ${esc(is.company)}</div></div></div>
+      </div>
+    </div>`;
+  fitPreview();
+}
+function fitPreview() {
+  const wrap = document.getElementById('preview'), box = document.getElementById('scaleBox'), sc = document.getElementById('scale'), page = document.getElementById('page');
+  const pw = 595 * 96 / 72, avail = wrap.clientWidth - 48;
+  // Screen zoom only: body text is 9pt (12px), so 14/12 shows it at 14px. Print is untouched.
+  const s = 14 / 12; pageScale = s; page.classList.toggle('editable', pageEditable());
+  sc.style.transform = `scale(${s})`; sc.style.width = pw + 'px'; const tools = document.getElementById('pvTools'); tools.style.width = pw * s + 'px';
+  box.style.width = pw * s + 'px';
+  box.style.height = page.offsetHeight * s + 'px';
+}
+window.addEventListener('resize', fitPreview);
+
+/* ======================= in-place editing on the page ======================= */
+// Marked values are contenteditable: click, type, Enter or click away commits, Escape cancels, Tab moves on.
+// Nothing swaps in or out, so the layout never jumps; only the caret shows.
+let pageScale = 1;
+const pageEditable = () => pageScale >= 0.5;
+const getPath = (o, path) => path.split('.').reduce((a, k) => a?.[k], o);
+const setPath = (o, path, v) => { const ks = path.split('.'); const last = ks.pop(); const t = ks.reduce((a, k) => a[k], o); t[last] = v; };
+const parseDateText = t => { const d = new Date(t); return isNaN(d) ? null : isoLocal(d); };
+let editing = null;
+function commitEdit(elm, cancelled) {
+  if (!editing || editing.elm !== elm) return; const { path, kind, orig, next } = editing; editing = null;
+  if (cancelled) { elm.textContent = orig; return; }
+  const inv = working(); const text = kind === 'multi' ? elm.innerText.replace(/\n+$/, '').trim() : elm.textContent.trim();
+  if (kind === 'total') { const want = num(text.replace(/[^0-9.\-]/g, '')); if (want) setTotal(inv, want); }
+  else if (kind === 'num') { setPath(inv, path, num(text.replace(/[^0-9.\-]/g, ''))); const m = path.match(/^items\.(\d+)\.(qty|rate|base|share|amount)$/); if (m) markEdited(inv.items[+m[1]], inv.model, m[2]); }
+  else if (kind === 'date') { const iso = parseDateText(text); if (iso) { setPath(inv, path, iso); if (path === 'dueDate') inv.dueDays = null; if (path === 'issueDate' && inv.dueDays) inv.dueDate = addDays(iso, inv.dueDays); } }
+  else { setPath(inv, path, text); if (path === 'number') syncSeries(inv); }
+  for (const k of ['note', 'additional']) if (inv[k] != null && !String(inv[k]).trim()) inv[k] = '';
+  touch(); buildForm();
+  if (next) { const all = [...document.querySelectorAll('#page [data-edit]')]; const k = all.findIndex(e => e.dataset.edit === path); focusEdit(all[k + next]); }
+}
+function focusEdit(elm) { if (!elm) return; elm.focus(); const r = document.createRange(); r.selectNodeContents(elm); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+const page = document.getElementById('page');
+// beginEdit remembers the original text so Escape can restore it; it runs on focus, and again lazily on the first
+// keystroke in case the window was not focused when the element was (focus events are skipped then).
+const beginEdit = t => { if (!t || !pageEditable() || editing?.elm === t) return; editing = { elm: t, path: t.dataset.edit, kind: t.dataset.kind, orig: t.textContent, next: 0 }; };
+page.addEventListener('focusin', e => beginEdit(e.target.closest?.('[data-edit]')));
+page.addEventListener('focusout', e => { const t = e.target.closest?.('[data-edit]'); if (t && editing?.elm === t) commitEdit(t, false); });
+page.addEventListener('keydown', e => {
+  const t = e.target.closest?.('[data-edit]'); if (!t) return; beginEdit(t); if (!editing) return;
+  if (e.key === 'Enter' && !(editing.kind === 'multi' && e.shiftKey)) { e.preventDefault(); commitEdit(t, false); t.blur(); }
+  else if (e.key === 'Escape') { e.preventDefault(); commitEdit(t, true); t.blur(); }
+  else if (e.key === 'Tab') { e.preventDefault(); editing.next = e.shiftKey ? -1 : 1; commitEdit(t, false); }
+});
+// Dates: a small popover with the native date picker; the due date also gets the presets.
+function openDatePop(anchor) {
+  const inv = working(), path = anchor.dataset.edit, isDue = path === 'dueDate';
+  const before = isDue ? [el('div', { class: 'fl' }, 'After the issue date'),
+    el('div', { class: 'tabs' }, [7, 15, 30, 45].map(n => el('button', { type: 'button', class: inv.dueDays === n ? 'on' : '', onclick: () => { inv.dueDays = n; inv.dueDate = addDays(inv.issueDate || today(), n); touch(); buildForm(); ui.closePop(); } }, `${n}d`))),
+    el('div', { class: 'pop-sep' }), el('div', { class: 'fl' }, 'Or pick a date')] : [];
+  ui.datePicker({ anchor, container: document.getElementById('preview'), value: inv[path], before, min: isDue ? inv.issueDate : undefined,
+    onPick: iso => { inv[path] = iso; if (isDue) inv.dueDays = null; if (path === 'issueDate' && inv.dueDays) inv.dueDate = addDays(inv.issueDate, inv.dueDays); if (path === 'issueDate' && inv.dueDate && inv.dueDate < inv.issueDate) inv.dueDate = inv.issueDate; touch(); buildForm(); } });
+}
+page.addEventListener('click', e => {
+  if (!pageEditable()) return;
+  const dt = e.target.closest('[data-edit][data-kind="date"]'); if (dt) { openDatePop(dt); return; }
+  const pick = e.target.closest('[data-pick]'); if (pick) { const tabs = pick.dataset.tabs ? pick.dataset.tabs.split(',') : undefined; openPicker(pick.dataset.pick, null, tabs); return; }
+  const add = e.target.closest('[data-add]'); if (add) { const inv = working(); inv[add.dataset.add] = ' '; renderPage(); focusEdit(document.querySelector(`#page [data-edit="${add.dataset.add}"]`)); return; }
+  const addItem = e.target.closest('[data-add-item]'); if (addItem) { const inv = working(); inv.items.push({ desc: 'New item', hsn: '998314', rateText: 'Fixed amount', amount: 0, edited: MODELS[inv.model]?.defaultEdited ? [...MODELS[inv.model].defaultEdited] : undefined }); touch(); buildForm(); focusEdit(document.querySelector(`#page [data-edit="items.${inv.items.length - 1}.desc"]`)); return; }
+  const rm = e.target.closest('[data-remove-item]'); if (rm) { const inv = working(); inv.items.splice(+rm.dataset.removeItem, 1); touch(); buildForm(); return; }
+  const ser = e.target.closest('[data-series]'); if (ser) { const inv = working(); if (inv.series !== ser.dataset.series) switchSeries(inv, ser.dataset.series); return; }
+  const model = e.target.closest('[data-model]'); if (model) { const inv = working(), k = model.dataset.model, m = MODELS[k]; inv.model = k; for (const r of inv.items) { if (m.keys && !r.edited) r.edited = [...m.defaultEdited]; recalc(r, k); } touch(); buildForm(); return; }
+});
+
+/* ======================= DOM helpers ======================= */
+// bind(obj, key) makes an input that writes into obj[key]. quiet: true skips the invoice re-render (used in profile forms).
+function bind(obj, key, opts = {}) {
+  const i = el(opts.multi ? 'textarea' : 'input', { class: 'in', type: opts.type || 'text', rows: opts.rows || 2, placeholder: opts.ph || '', step: opts.step || 'any' });
+  i.value = obj[key] ?? '';
+  i.addEventListener('input', () => { obj[key] = i.value; if (opts.onInput) opts.onInput(i.value, i); if (!opts.quiet) touch(); });
+  return i;
+}
+function sel(obj, key, options, onchange) {
+  const s = el('select', { class: 'in' }, options.map(([v, l]) => el('option', { value: v, selected: String(obj[key]) === String(v) }, l)));
+  s.addEventListener('change', () => { obj[key] = s.value; if (onchange) onchange(s.value); touch(); });
+  return s;
+}
+let saveTimer;
+function touch() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 150); renderPage(); refreshTopbar(); refreshStatus(); buildList(); }
+
+/* ======================= numbering and lifecycle ======================= */
+function nextNumber(series, year = new Date().getFullYear(), excludeId = null) {
+  const re = new RegExp('^' + series.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + year + '-(\\d+)$');
+  let max = 0;
+  for (const inv of state.invoices) { if (inv.id === excludeId) continue; const m = (inv.number || '').match(re); if (m) max = Math.max(max, +m[1]); }
+  return `${series}${year}-${String(max + 1).padStart(2, '0')}`;
+}
+function blankInvoice(series) {
+  const first = arr => arr[0] ? snapshot(arr[0]) : null;
+  const client = series === 'E' ? state.clients.find(c => norm(c.country) !== 'india') : state.clients.find(c => norm(c.country) === 'india');
+  const inv = { id: uid(), number: '', series, issueDate: today(), dueDays: 30, dueDate: addDays(today(), 30),
+    client: client ? snapshot(client) : { name: '', address: '', country: series === 'E' ? '' : 'India', state: '', gstin: '', email: '' },
+    issuer: (defaultIssuer() && snapshot(defaultIssuer())) || { company: '', gstin: '', pan: '', address: '', country: 'India', state: '', email: '', phone: '', signatory: '' },
+    bank: first(state.banks) || { rows: [], paymentMethod: '' },
+    currency: { ...CURRENCIES.INR }, model: 'hourly',
+    items: [{ desc: 'Product Design & Creative Support', hsn: '998314', rateText: 'Fixed amount', amount: 0 }],
+    additional: '', note: '', createdAt: Date.now(), updatedAt: Date.now() };
+  inv.series = deriveSeries(inv); inv.number = nextNumber(inv.series);
+  return inv;
+}
+// Due date defaults to 30 days after issue and follows the issue date, unless a custom date was picked.
+const inferDueDays = inv => { if (!inv.issueDate || !inv.dueDate) return 30; const d = Math.round((new Date(inv.dueDate) - new Date(inv.issueDate)) / 86400000); return [7, 15, 30, 45].includes(d) ? d : null; };
+const defaultIssuer = () => state.issuers[0];   // the first saved profile; the user reorders by editing
+function newInvoice(series) {
+  const latest = state.invoices.filter(i => i.series === series).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || b.updatedAt - a.updatedAt)[0];
+  let inv;
+  if (latest) {
+    inv = clone(latest);
+    Object.assign(inv, { id: uid(), number: nextNumber(series), issueDate: today(), dueDays: inv.dueDays || 30, createdAt: Date.now(), updatedAt: Date.now() }); inv.dueDate = addDays(today(), inv.dueDays);
+  } else inv = blankInvoice(series);
+  if (defaultIssuer()) inv.issuer = snapshot(defaultIssuer());
+  state.drafts.unshift(inv); justAdded = inv.id; swapPage(() => { state.currentId = inv.id; save(); renderAll(); }); toast(`${inv.number} started (draft)`);
+}
+// Export <-> Domestic on the current invoice: take the client (and its model/currency) from the latest invoice of that kind.
+function switchSeries(inv, series) {
+  const latest = state.invoices.filter(i => i.series === series && i.id !== inv.id).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''))[0];
+  const prof = latest && state.clients.find(c => c.id === latest.client?.profileId);
+  if (prof) KINDS.clients.apply(inv, prof);
+  else if (latest) { inv.client = clone(latest.client); syncSeries(inv); }
+  else { const c = state.clients.find(c => (norm(c.country) !== 'india') === (series === 'E')); inv.client = c ? snapshot(c) : { name: '', address: '', country: series === 'E' ? '' : 'India', state: '', gstin: '', email: '' }; syncSeries(inv); }
+  // currency follows the client: the profile's setting, else what the latest invoice of this kind used
+  if (isExport(inv)) inv.currency = curFor((prof && prof.currency) || latest?.currency?.code || inv.client.currency || 'INR');
+  touch(); buildForm(); toast(`Now a ${series === 'E' ? 'export' : 'domestic'} invoice, ${inv.number}`);
+}
+function duplicateInvoice(id = state.currentId) {
+  const src = draftOf(id) || state.edits[id] || savedById(id); if (!src) return;
+  const inv = clone(src);
+  const m = (src.number || '').match(/^([A-Za-z]+)\d{4}-\d+$/);
+  Object.assign(inv, { id: uid(), number: m ? nextNumber(m[1]) : src.number + ' copy', issueDate: today(), dueDays: src.dueDays || 30, createdAt: Date.now(), updatedAt: Date.now() }); inv.dueDate = addDays(today(), inv.dueDays);
+  state.drafts.unshift(inv); justAdded = inv.id; swapPage(() => { state.currentId = inv.id; save(); renderAll(); }); toast(`Duplicated as ${inv.number} (draft)`);
+}
+// Fade the page out, run `change` (which updates state and re-renders), fade back in.
+function swapPage(change) { ui.swapSlide(document.getElementById('scaleBox'), change); }
+function openInvoice(id) {
+  if (!draftOf(id) && !savedById(id)) return;
+  if (id === state.currentId) return;
+  swapPage(() => { state.currentId = id; save(); renderAll(); });
+}
+function saveWorking() {
+  const inv = working(); if (!inv) return false;
+  if (!inv.number) { toast('Give the invoice a number first'); return false; }
+  const dupe = state.invoices.find(i => i.number === inv.number && i.id !== inv.id);
+  if (dupe && !confirm(`${inv.number} already exists in history. Save anyway?`)) return false;
+  inv.updatedAt = Date.now();
+  const idx = state.invoices.findIndex(i => i.id === inv.id);
+  if (idx >= 0) { state.invoices[idx] = clone(inv); delete state.edits[inv.id]; }
+  else { state.invoices.unshift(clone(inv)); state.drafts = state.drafts.filter(d => d.id !== inv.id); }
+  save(); renderAll(); toast(`Saved ${inv.number}`); return true;
+}
+// There is always something selected: the current one, else the newest draft, else the latest saved invoice, else a fresh draft.
+function ensureWorking() {
+  if (working()) return;
+  const latest = [...state.invoices].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+  if (state.drafts[0]) state.currentId = state.drafts[0].id;
+  else if (latest) state.currentId = latest.id;
+  else { const inv = blankInvoice('D'); state.drafts.push(inv); state.currentId = inv.id; }
+  if (state.savedAt) save();   // never stamp a state that was only just seeded, or it would outrank the data file
+}
+function discardWorking() {
+  const id = state.currentId;
+  if (draftOf(id)) { const showing = id === state.currentId; animateRowOut(id, () => { const go = () => { state.drafts = state.drafts.filter(d => d.id !== id); state.currentId = null; ensureWorking(); renderAll(); }; showing ? swapPage(go) : go(); }); return; }
+  delete state.edits[id];
+  ensureWorking(); renderAll();
+}
+function deleteInvoice(id) {
+  const inv = savedById(id); if (!inv) return;
+  const showing = id === state.currentId;
+  animateRowOut(id, () => {
+    const go = () => { state.invoices = state.invoices.filter(i => i.id !== id); delete state.edits[id]; if (state.currentId === id) state.currentId = null; ensureWorking(); renderAll(); toast('Deleted'); };
+    showing ? swapPage(go) : go();
+  });
+}
+
+/* ======================= brand images on the issuer profile ======================= */
+// A profile's logo and signature are stored in the profile itself as data URLs, so they travel with the data files.
+// undefined means "never set" and falls back to the bundled image; '' means removed on purpose and prints nothing.
+// The picker itself is shared: ui.imagePicker / ui.imgOf.
+const DEFAULT_LOGO = 'assets/logo.png', DEFAULT_SIGNATURE = 'assets/signature.svg';
+
+/* ======================= profile picker dialog ======================= */
+const KINDS = {
+  clients: { title: 'Client', name: p => p.name || '(unnamed)', sub: p => [p.state, p.country].filter(Boolean).join(', ') || 'country not set',
+    blank: () => ({ id: uid(), name: '', address: '', country: 'India', state: '', gstin: '', email: '', currency: 'INR' }),
+    form: p => { const st = bind(p, 'state', { quiet: true, ph: 'e.g. Karnataka' });
+      return [field('Name', bind(p, 'name', { quiet: true })), field('Address (as it should print)', bind(p, 'address', { quiet: true, multi: true, rows: 3 })),
+        el('div', { class: 'g2' }, field('Country', bind(p, 'country', { quiet: true, ph: 'India' })), field('State (for GST)', st)),
+        el('div', { class: 'g2' }, field('GSTIN', bind(p, 'gstin', { quiet: true, onInput: v => { const s = stateFromGstin(v); if (s && !p.state) { p.state = s; st.value = s; } } })), field('Email', bind(p, 'email', { quiet: true }))),
+        field('Invoice currency', bind(p, 'currency', { quiet: true, ph: 'INR', onInput: (v, i) => { i.value = v.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3); p.currency = i.value; } })),
+        el('p', { class: 'hint' }, 'Outside India = export invoice, no GST. Same state as the issuer = CGST + SGST, otherwise IGST. The state fills in from the GSTIN. Currency is an ISO code; Indian clients are always invoiced in INR.')]; },
+    apply: (inv, p) => { inv.client = snapshot(p); inv.currency = curFor(p.currency || state.invoices.find(i => i.client?.profileId === p.id)?.currency?.code); syncSeries(inv);
+      // remember how this client was last billed
+      const last = state.invoices.filter(i => i.client?.profileId === p.id && i.id !== inv.id).sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || ''))[0];
+      if (last) { inv.model = last.model; for (const r of inv.items) { const M = MODELS[inv.model]; if (M?.keys && !r.edited) r.edited = [...M.defaultEdited]; recalc(r, inv.model); } } } },
+  issuers: { title: 'Issuer profile', name: p => p.label || p.company, sub: p => [p.gstin, p.state].filter(Boolean).join(' · '),
+    blank: () => ({ id: uid(), label: '', company: '', gstin: '', pan: '', address: '', country: 'India', state: '', email: '', phone: '', signatory: '' }),
+    form: p => { const st = bind(p, 'state', { quiet: true });
+      return [field('Profile name', bind(p, 'label', { quiet: true, ph: 'e.g. Bengaluru office' })), field('Company', bind(p, 'company', { quiet: true })),
+        el('div', { class: 'g2' }, field('GSTIN', bind(p, 'gstin', { quiet: true, onInput: v => { const s = stateFromGstin(v); if (s) { p.state = s; st.value = s; } } })), field('PAN', bind(p, 'pan', { quiet: true }))),
+        field('Address', bind(p, 'address', { quiet: true, multi: true, rows: 3 })),
+        el('div', { class: 'g2' }, field('State (for GST)', st), field('Contact', bind(p, 'phone', { quiet: true }))),
+        el('div', { class: 'g2' }, field('Email', bind(p, 'email', { quiet: true })), field('Signed by', bind(p, 'signatory', { quiet: true }))),
+        el('div', { class: 'g2' }, ui.imagePicker(p, 'logo', 'Logo', DEFAULT_LOGO), ui.imagePicker(p, 'signature', 'Signature', DEFAULT_SIGNATURE))]; },
+    apply: (inv, p) => { inv.issuer = snapshot(p); } },
+  banks: { title: 'Bank account', name: p => p.label || '(unnamed)', sub: p => (p.rows.find(r => /bank name/i.test(r.label))?.value || '') + (p.paymentMethod ? ' · ' + p.paymentMethod : ''),
+    blank: () => ({ id: uid(), label: '', paymentMethod: '', rows: [{ label: 'Name', value: '' }, { label: 'Account number', value: '' }, { label: 'IFSC Code', value: '' }, { label: 'SWIFT Code', value: '' }, { label: 'Bank Name', value: '' }] }),
+    form: p => { const rows = el('div');
+      const move = (i, d) => { const j = i + d; if (j < 0 || j >= p.rows.length) return; [p.rows[i], p.rows[j]] = [p.rows[j], p.rows[i]]; draw(); };
+      const draw = () => { rows.innerHTML = ''; p.rows.forEach((r, i) => rows.append(el('div', { class: 'kvrow' }, bind(r, 'label', { quiet: true, ph: 'Label' }), bind(r, 'value', { quiet: true, ph: 'Value' }),
+        el('span', { class: 'row-tools' },
+          el('button', { class: 'btn sm secondary', type: 'button', title: 'Move up', disabled: i === 0, onclick: () => move(i, -1) }, icon('caret-up')),
+          el('button', { class: 'btn sm secondary', type: 'button', title: 'Move down', disabled: i === p.rows.length - 1, onclick: () => move(i, 1) }, icon('caret-down')),
+          el('button', { class: 'btn sm secondary', type: 'button', title: 'Remove', onclick: () => { p.rows.splice(i, 1); draw(); } }, icon('x')))))); };
+      draw();
+      return [field('Profile name', bind(p, 'label', { quiet: true, ph: 'e.g. Main account (company)' })), el('span', { class: 'fl' }, 'Rows, printed in this order'), rows,
+        el('button', { class: 'btn secondary', type: 'button', onclick: () => { p.rows.push({ label: '', value: '' }); draw(); } }, 'Add row'), el('div', { style: 'height:10px' }),
+        field('Payment method (blank hides the row)', bind(p, 'paymentMethod', { quiet: true, ph: 'e.g. Bank transfer (via Remote)' }))]; },
+    apply: (inv, p) => { inv.bank = snapshot(p); } },
+};
+function openPicker(kind, editId) {
+  const K = KINDS[kind], inv = working(), D = ui.dialog;
+  const showList = () => {
+    const curId = inv?.[kind === 'clients' ? 'client' : kind === 'issuers' ? 'issuer' : 'bank']?.profileId;
+    const rows = state[kind].map(p => el('div', { class: 'pick' + (p.id === curId ? ' on' : ''), onclick: () => { K.apply(inv, p); D.close(); afterProfileChange(); } },
+      el('div', {}, el('div', { class: 'pn' }, K.name(p)), el('div', { class: 'ps' }, K.sub(p))),
+      el('button', { class: 'btn sm secondary', type: 'button', onclick: e => { e.stopPropagation(); showForm(p); } }, 'Edit'),
+      el('button', { class: 'btn sm secondary', type: 'button', title: 'Delete saved ' + K.title.toLowerCase() + ' (invoices that used it keep their own copy)', onclick: e => { e.stopPropagation();
+        ui.confirmClick(e.currentTarget, { resetOn: e.currentTarget.closest('.pick'), onConfirm: () => { state[kind] = state[kind].filter(x => x.id !== p.id); save(); showList(); toast('Deleted'); } }); } }, 'Delete')));
+    D.open({ title: 'Choose ' + K.title.toLowerCase(), body: rows.length ? rows : el('div', { class: 'empty' }, 'Nothing saved yet.'), footLeft: true,
+      foot: el('button', { class: 'btn', type: 'button', onclick: () => showForm(null) }, 'Add new') });
+  };
+  const showForm = existing => {
+    const isNew = !existing, p = isNew ? K.blank() : clone(existing);
+    D.open({ title: (isNew ? 'New ' : 'Edit ') + K.title.toLowerCase(), body: K.form(p), footLeft: false, foot: [
+      el('button', { class: 'btn', type: 'button', onclick: showList }, 'Back'),
+      el('button', { class: 'btn', type: 'button', onclick: () => {
+        if (kind === 'clients' && !p.name.trim()) return toast('Name is required');
+        if (kind !== 'clients' && !p.label.trim()) p.label = kind === 'issuers' ? (p.state || p.gstin || 'Issuer') : (p.rows.find(r => /bank name/i.test(r.label))?.value || 'Bank');
+        if (isNew) state[kind].push(p); else state[kind][state[kind].findIndex(x => x.id === p.id)] = p;
+        // a new profile is applied straight away; an edited one is applied if this invoice was using it
+        const cur = inv?.[kind === 'clients' ? 'client' : kind === 'issuers' ? 'issuer' : 'bank'];
+        if (inv && (isNew || cur?.profileId === p.id)) K.apply(inv, p);
+        save(); D.close(); afterProfileChange(); toast(isNew ? 'Added and applied' : 'Updated');
+      } }, isNew ? 'Add and use' : 'Save')] });
+  };
+  if (editId) { const p = state[kind].find(x => x.id === editId); p ? showForm(p) : showForm(null); } else showList();
+}
+function afterProfileChange() { buildForm(); touch(); }
+
+/* ======================= editor form ======================= */
+let statusEl, seriesEl, numberEl;
+function refreshStatus() {
+  const inv = working(); if (!inv) return;
+  document.querySelectorAll('#seriesSeg button').forEach((b, i) => b.classList.toggle('on', inv.series === (i === 0 ? 'E' : 'D')));
+  if (numberEl && numberEl.value !== inv.number) numberEl.value = inv.number;
+}
+function refreshTopbar() {
+  const inv = working(), dirty = isDirty(), saved = !!savedOf();
+  const b = id => document.getElementById(id);
+  b('btnSave').disabled = !inv || !dirty;
+  b('btnPdf').disabled = !inv;
+  // the primary action is whichever one can run: Save invoice while there are changes, otherwise Download
+  b('btnPdf').className = 'btn' + (b('btnSave').disabled ? '' : ' secondary');
+  // only shown when a saved invoice has unsaved edits; deleting and discarding drafts happen from the list
+  b('btnDel').hidden = !(inv && saved && dirty); b('btnDel').textContent = 'Discard changes'; b('btnDel').title = 'Go back to the saved version';
+}
+function summaryCard(kind, obj) {
+  if (!obj) return el('div', { class: 'cs empty' }, 'Nothing selected');
+  const line = t => t ? el('div', { class: 'cs-line' }, t) : null;
+  if (kind === 'clients') return el('div', { class: 'cs' }, el('div', { class: 'cs-name' }, obj.name || '(no client)'), obj.gstin && line('GSTIN ' + obj.gstin), obj.email && line(obj.email),
+    el('div', { class: 'cs-meta' }, icon('map-pin'), [obj.state, obj.country].filter(Boolean).join(', ') || 'Country not set'));
+  if (kind === 'issuers') return el('div', { class: 'cs' }, el('div', { class: 'cs-name' }, obj.company), line('GSTIN ' + obj.gstin + '  ·  PAN ' + obj.pan), line([obj.email, obj.phone].filter(Boolean).join('  ·  ')),
+    el('div', { class: 'cs-meta' }, icon('map-pin'), [obj.label, obj.state].filter(Boolean).join(' · ')));
+  return el('div', { class: 'cs' }, (obj.rows || []).map(r => el('div', { class: 'cs-kv' }, el('span', {}, r.label), el('span', {}, r.value))),
+    obj.paymentMethod && el('div', { class: 'cs-kv' }, el('span', {}, 'Payment method'), el('span', {}, obj.paymentMethod)), obj.label && el('div', { class: 'cs-meta' }, icon('bank'), obj.label));
+}
+const KIND_ICON = { clients: 'user-circle', issuers: 'buildings', banks: 'bank' };
+// Collapsible sidebar section. Open state is remembered per section in localStorage.
+const openSections = (() => { try { return JSON.parse(localStorage.getItem('scs-open-sections') || '{}'); } catch (e) { return {}; } })();
+function section(key, title, iconName, actions, body, opts = {}) {
+  const collapsible = !!opts.collapsible, isOpen = !collapsible || (openSections[key] ?? !!opts.openByDefault);
+  const sec = el('div', { class: 'sec' + (collapsible ? ' acc' : '') + (isOpen ? ' open' : '') });
+  const h = el('h3', {}, collapsible ? icon('caret-down', 'caret') : null, icon(iconName), title, el('span', { class: 'spacer' }), actions ? el('span', { class: 'actions', onclick: e => e.stopPropagation() }, actions) : null);
+  if (collapsible) h.addEventListener('click', () => { const now = !sec.classList.contains('open'); sec.classList.toggle('open', now); openSections[key] = now; try { localStorage.setItem('scs-open-sections', JSON.stringify(openSections)); } catch (e) {} });
+  sec.append(h, el('div', { class: 'sec-body' }, body));
+  return sec;
+}
+function profileSection(title, kind, key, opts) {
+  const inv = working();
+  return section(kind, title, KIND_ICON[kind], [el('button', { class: 'btn ghost sm', onclick: () => openPicker(kind) }, icon('arrows-left-right'), 'Change')], summaryCard(kind, inv[key]), opts);
+}
+function buildForm() {
+  const side = document.getElementById('sidebar'); if (!side) return;
+  const inv = working();
+  side.innerHTML = ''; statusEl = seriesEl = numberEl = null;
+  if (!inv) { ensureWorking(); return buildForm(); }
+  const c = inv.currency;
+
+  // ----- invoice -----
+  if (inv.dueDays === undefined) inv.dueDays = inferDueDays(inv);
+  numberEl = bind(inv, 'number');
+  const dueIn = bind(inv, 'dueDate', { type: 'date' });
+  const dueSel = el('select', { class: 'in' }, [[7, '7 days'], [15, '15 days'], [30, '30 days'], [45, '45 days'], ['custom', 'Pick a date…']].map(([v, l]) => el('option', { value: v, selected: String(inv.dueDays ?? 'custom') === String(v) }, l)));
+  const syncDue = () => { if (inv.dueDays) inv.dueDate = addDays(inv.issueDate || today(), inv.dueDays); dueIn.value = inv.dueDate; dueIn.hidden = !!inv.dueDays; };
+  dueSel.addEventListener('change', () => { inv.dueDays = dueSel.value === 'custom' ? null : +dueSel.value; syncDue(); touch(); });
+  const issueIn = bind(inv, 'issueDate', { type: 'date', onInput: syncDue });
+  syncDue();
+  const seg = el('div', { class: 'seg', id: 'seriesSeg' }, [['E', 'globe-simple', 'Export'], ['D', 'buildings', 'Domestic']].map(([sv, ic, label]) =>
+    el('button', { class: inv.series === sv ? 'on' : '', title: inv.series === sv ? `This is a ${label.toLowerCase()} invoice (set by the client's country)` : `Switch this invoice to ${label.toLowerCase()}: picks the client from the latest ${label.toLowerCase()} invoice`, onclick: () => { if (inv.series !== sv) switchSeries(inv, sv); } }, icon(ic), label)));
+  side.append(el('div', { class: 'sec' },
+    el('h3', {}, icon('receipt'), 'Invoice'),
+    seg,
+    el('div', { class: 'g3' }, field('Number', numberEl), field('Issued', issueIn), field('Due', dueSel)),
+    dueIn));
+  dueIn.classList.add('due-custom');
+
+  // ----- bill to -----
+  side.append(profileSection('Bill to', 'clients', 'client'));
+
+  // ----- items -----
+  const itemsBox = el('div');
+  const buildItems = () => {
+    itemsBox.innerHTML = '';
+    const M = MODELS[inv.model] || MODELS.share;
+    inv.items.forEach((r, i) => {
+      recalc(r, inv.model);
+      const inputs = {};
+      const paint = () => { const d = derivedKey(r, inv.model); for (const [k, i] of Object.entries(inputs)) { i.classList.toggle('derived', k === d); i.title = k === d ? 'Calculated from the other two' : ''; if (k === d) i.value = r[k] ?? ''; } };
+      const linked = key => bind(r, key, { type: 'number', onInput: () => { markEdited(r, inv.model, key); paint(); } });
+      const cols = M.cols.filter(col => col.type === 'number').map(col => { const i = linked(col.key); inputs[col.key] = i; return field(typeof col.label === 'function' ? col.label(c) : col.label, i); });
+      const amt = linked('amount'); inputs.amount = amt;
+      // HSN and the fixed-model rate text live behind a small "details" toggle; 998314 is the default
+      if (!r.hsn) r.hsn = '998314';
+      const details = el('div', { class: 'item-details', hidden: true }, el('div', { class: 'g2' }, field('HSN/SAC', bind(r, 'hsn')), inv.model === 'fixed' ? field('Rate column text', bind(r, 'rateText', { ph: 'Fixed amount' })) : null));
+      const toggle = el('button', { class: 'btn ghost sm', type: 'button', onclick: () => { details.hidden = !details.hidden; } }, icon('caret-down'), `HSN ${r.hsn}`);
+      const card = el('div', { class: 'item' },
+        el('div', { class: 'head' }, bind(r, 'desc', { multi: true, rows: 1, ph: 'Item description' }),
+          el('button', { class: 'btn ghost icon sm', title: 'Remove', onclick: () => { inv.items.splice(i, 1); buildItems(); touch(); refreshTotal(); } }, icon('x'))),
+        el('div', { class: 'cols', style: `grid-template-columns: repeat(${cols.length + 1}, 1fr)` }, cols, field('Amount', amt)),
+        el('div', { class: 'item-foot' }, toggle), details);
+      paint();
+      itemsBox.append(card);
+    });
+  };
+  buildItems();
+  const totalIn = el('input', { class: 'in', type: 'number', step: 'any' });
+  const refreshTotal = () => { if (document.activeElement !== totalIn) totalIn.value = compute(inv).total; };
+  totalIn.addEventListener('input', () => { const want = num(totalIn.value); if (!want) return; setTotal(inv, want); buildItems(); touch(); });
+  totalIn.addEventListener('blur', refreshTotal);
+  itemsBox.addEventListener('input', refreshTotal);
+  refreshTotal();
+  const modelSeg = el('div', { class: 'seg', id: 'modelSeg' }, Object.entries(MODELS).map(([k, m]) => el('button', { class: inv.model === k ? 'on' : '', title: m.name, onclick: () => { inv.model = k; for (const r of inv.items) { if (m.keys && !r.edited) r.edited = [...m.defaultEdited]; recalc(r, k); } document.querySelectorAll('#modelSeg button').forEach(b => b.classList.toggle('on', b.title === m.name)); buildItems(); touch(); refreshTotal(); } }, m.tab)));
+  // currency: domestic is always INR; export gets a pill row
+  const curRow = isExport(inv) ? el('div', { class: 'tabs' }, Object.keys(CURRENCIES).map(k => el('button', { class: curKey(c) === k ? 'on' : '', type: 'button', onclick: () => { inv.currency = { ...CURRENCIES[k] }; buildForm(); touch(); } }, k))) : null;
+  const tax = deriveTax(inv);
+  const taxLine = el('p', { class: 'hint tax-line' }, icon(tax.kind === 'export' ? 'globe-simple' : 'seal-check'), ' ', tax.why);
+  // extras as add links
+  const extra = (key, label) => { const ta = bind(inv, key, { multi: true, rows: 2, ph: label }); const f = field(label, ta); const link = el('button', { class: 'btn ghost sm', type: 'button', onclick: () => { f.hidden = false; link.hidden = true; ta.focus(); } }, icon('plus'), label); if (!inv[key]) f.hidden = true; else link.hidden = true; return [link, f]; };
+  const [addLink, addField] = extra('additional', 'Additional details'), [noteLink, noteField] = extra('note', 'Note');
+  side.append(el('div', { class: 'sec' },
+    el('h3', {}, icon('calculator'), 'Items', el('span', { class: 'spacer' }), curRow),
+    modelSeg,
+    itemsBox,
+    el('button', { class: 'btn sm', onclick: () => { inv.items.push({ desc: 'New item', hsn: '998314', rateText: 'Fixed amount', amount: 0, edited: MODELS[inv.model]?.defaultEdited ? [...MODELS[inv.model].defaultEdited] : undefined }); buildItems(); touch(); refreshTotal(); } }, icon('plus'), 'Item'),
+    el('div', { style: 'height:12px' }),
+    field('Total incl. tax (type it to work the items out backwards)', totalIn),
+    taxLine));
+
+  // ----- from: issuer + bank in one collapsed section -----
+  side.append(section('from', 'From', 'buildings', [el('button', { class: 'btn ghost sm', onclick: () => openPicker('issuers', null, ['issuers', 'banks']) }, icon('arrows-left-right'), 'Change')],
+    [summaryCard('issuers', inv.issuer), el('div', { style: 'height:8px' }), summaryCard('banks', inv.bank)], { collapsible: true }));
+
+  // ----- extras: add links at the bottom -----
+  side.append(el('div', { class: 'sec' }, el('div', { class: 'extras' }, addLink, noteLink), addField, noteField));
+  refreshStatus();
+}
+
+/* ======================= invoice list ======================= */
+let justAdded = null; // the row that should slide in on the next list build
+// Collapse a list row upward, then run `done` (which removes it from state and rebuilds the list).
+function animateRowOut(id, done) { ui.rowOut(document.querySelector(`#invlist .row[data-id="${id}"]`), done); }
+let draftsShown = false;   // whether the last list render had drafts, to animate the empty state in
+function buildList() {
+  const v = document.getElementById('invlist'); const scroll = v.scrollTop; v.innerHTML = '';
+  const row = (inv, isDraft) => {
+    const shown = isDraft ? inv : (state.edits[inv.id] || inv);
+    const { total } = compute(shown);
+    return el('div', { class: 'row' + (inv.id === state.currentId ? ' on' : '') + (isDraft ? ' draft' : '') + (inv.id === justAdded ? ' enter' : ''), 'data-id': inv.id, onclick: () => openInvoice(inv.id) },
+      el('div', { class: 'n' }, shown.number || '(no number)', isDirtyId(inv.id) && !isDraft ? el('span', { class: 'dot', title: 'Unsaved changes' }) : null),
+      el('div', { class: 'sub' }, fmtMoney(total, shown.currency, 'never')),
+      el('div', { class: 'sub' }, shown.client?.name || '—'),
+      el('div', { class: 'sub' }, fmtDate(inv.issueDate)),
+      el('button', { class: 'btn sm secondary row-action', onclick: e => { e.stopPropagation();
+        ui.confirmClick(e.currentTarget, { resetOn: e.currentTarget.closest('.row'), onConfirm: () => { if (isDraft) { state.currentId = inv.id; discardWorking(); toast('Draft discarded'); } else deleteInvoice(inv.id); } }); } }, 'Delete'));
+  };
+  v.append(el('div', { class: 'list-top' }, el('button', { class: 'btn sm', title: 'Start a new invoice like the current one', onclick: () => newInvoice(working()?.series || 'D') }, 'New invoice')),
+    el('div', { class: 'list-h' }, 'Drafts'));
+  if (disk) disk.bar(v);
+  // when the last draft goes, "No drafts yet" grows in with the same motion as a new row
+  const emptyNow = !state.drafts.length, emptyEl = emptyNow ? el('div', { class: 'list-empty' }, 'No drafts yet') : null;
+  if (emptyEl) v.append(emptyEl);
+  state.drafts.forEach(d => v.append(row(d, true)));
+  const saved = [...state.invoices].sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '') || (b.number || '').localeCompare(a.number || ''));
+  let year = null;
+  for (const inv of saved) { const y = (inv.issueDate || '').slice(0, 4) || 'Undated'; if (y !== year) { year = y; v.append(el('div', { class: 'list-h' }, y)); } v.append(row(inv, false)); }
+  if (!saved.length && !state.drafts.length) v.append(el('div', { class: 'empty' }, 'No invoices yet.'));
+  v.scrollTop = scroll; justAdded = null;
+  const fresh = v.querySelector('.row.enter'); if (fresh) ui.rowIn(fresh);
+  if (emptyEl && draftsShown) ui.rowIn(emptyEl);
+  draftsShown = !emptyNow;
+  const on = v.querySelector('.row.on'); if (on && (on.offsetTop < v.scrollTop || on.offsetTop + on.offsetHeight > v.scrollTop + v.clientHeight)) on.scrollIntoView({ block: 'nearest' });
+}
+
+/* ======================= render and actions ======================= */
+function renderAll() { ensureWorking(); buildList(); buildForm(); renderPage(); refreshTopbar(); }
+const openEditor = renderAll;
+document.getElementById('btnSave').onclick = saveWorking;
+document.getElementById('btnDup').onclick = () => duplicateInvoice();
+document.getElementById('pvTools').addEventListener('click', e => {
+  const ser = e.target.closest('[data-series]'); if (ser) { const inv = working(); if (inv.series !== ser.dataset.series) switchSeries(inv, ser.dataset.series); return; }
+});
+
+
+document.getElementById('btnDel').onclick = () => {
+  if (!working()) return;
+  if (!savedOf()) { discardWorking(); toast('Draft discarded'); return; }
+  if (isDirty()) { discardWorking(); toast('Changes discarded'); return; }
+  deleteInvoice(state.currentId);
+};
+document.getElementById('btnPdf').onclick = () => { if (!working()) return; if (isDirty() && !saveWorking()) return; setTimeout(() => window.print(), 50); };
+window.addEventListener('beforeprint', () => { const inv = working(); if (inv) document.title = inv.number; });
+window.addEventListener('afterprint', () => { document.title = 'Invoices'; });
+
+load();
+{ // ?open=E2026-04 selects that saved invoice
+  const want = new URLSearchParams(location.search).get('open');
+  const hit = want && state.invoices.find(i => i.number === want);
+  if (hit) state.currentId = hit.id;
+}
+renderAll();
+document.fonts.ready.then(() => fitPreview());
+// mirror the state to <folder>/invoices.json once a data folder is connected; the file wins if it is newer
+dataset.banner('invoices');
+if (dataset.own) {
+  const partiesDisk = parties.attach(() => { if (state) { sharedParties(state); renderAll(); } });
+  disk = store.attach({ key: 'invoices', get: () => state, set: d => { state = d; migrateWorking(state); migrateModels(state); sharedParties(state); }, adopt: () => { partiesDisk?.sync(); renderAll(); } });
+  partiesDisk?.sync();
+}
+// once the folder is connected, anything still in the browser buffer is written out and the buffer is dropped
+disk?.sync()?.then(st => { buildList(); if (st === 'connected' && dataset.buffer.read(LS_KEY)) save(); });
+</script>
+</body>
+</html>

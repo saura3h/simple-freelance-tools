@@ -1,0 +1,76 @@
+/* Design tokens. Import first. One type setting for the whole UI; documents (like the printed invoice) override it locally. */
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('fonts/InstrumentSans-Variable.ttf') format('truetype');
+  font-weight: 400 700;
+  font-style: normal;
+}
+
+:root {
+  /* colour: one ink; text colours (primary, secondary, disabled) are derived from it at the bottom of this file */
+  --ink: #121212;
+  --ink-inverse: #fff;  /* text on inverted surfaces (toast, popover, date picker) */
+  --bg-inverse: #121212;
+  --muted: #737373;      /* only for document text (labels on the printed page); UI uses opacity */
+  --line: #ededed;
+  --line-strong: #d6d6d9;
+  --line-focus: #b4b4b4;
+  --soft: #fafafa;
+  --fill: #f8f8f8;        /* input background */
+  --fill-hover: #f4f4f4;
+  --bg: #fff;
+  --accent: #1855e4;     /* document accent only; the UI has no accent colour */
+  --accent-soft: #eef3ff;
+  --danger: #b3261e;
+
+  /* inverted surfaces (toast, popover, date picker, tooltip): the same contrast ratios as the
+     values above have against white, measured against --bg-inverse. Opacities differ because
+     white text dims faster on black than black text does on white. */
+  --line-inverse: #222222;
+  --line-strong-inverse: #323232;
+  --line-focus-inverse: #494949;
+  --soft-inverse: #171717;
+  --fill-inverse: #191919;
+  --fill-hover-inverse: #1c1c1c;
+  --muted-inverse: #808080;
+  --dim-inverse: .4;             /* a touch above the exact match (.333), which read too faint */
+  --dim-disabled-inverse: .255;
+
+  /* type */
+  --font: 'Instrument Sans', system-ui, sans-serif;
+  --wdth: 96;
+  --weight: 450;
+  --weight-strong: 600;
+  --size: 14px;
+  --leading: 22px;
+  --tracking: 0.3px;
+
+  /* shape and rhythm */
+  --radius: 3px;
+  --underline: 3px;     /* text-underline-offset for every underline */
+  --banner-h: 57px;      /* the sample-data banner: 22px line + 17px above and below + its hairline */
+  --pad: 20px;           /* dialog padding */
+  --pad-pop: 16px;       /* popover and date picker padding */
+  --pad-chip: 4px 10px;  /* toast and tooltip padding */
+  --gap-tabs: 0.35em;     /* between options that are alternatives */
+  --gap-actions: 1.2em;  /* between actions in a row */
+  --dim: .45;            /* strength of --ink-secondary */
+  --dim-disabled: .35;   /* strength of --ink-disabled */
+
+  /* motion */
+  --t-hover: .12s;
+  --t-fade: .15s;
+  --t-row-in: .32s;
+  --t-row-out: .28s;
+  --ease-out: cubic-bezier(.2,.7,.2,1);
+  --ease-in: cubic-bezier(.4,0,.2,1);
+}
+
+/* Text colours. Three, all derived from --ink so an inverted surface gets matched ones for free:
+   primary for what you act on, secondary for everything supporting, disabled for what you can't use.
+   Declared on the inverted surfaces too, so they recompute from those surfaces' --ink and --dim. */
+:root, .pop, .toast, .inverse {
+  --ink-primary: var(--ink);
+  --ink-secondary: color-mix(in srgb, var(--ink) calc(var(--dim) * 100%), transparent);
+  --ink-disabled: color-mix(in srgb, var(--ink) calc(var(--dim-disabled) * 100%), transparent);
+}

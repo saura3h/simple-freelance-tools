@@ -1,0 +1,21 @@
+/* Base: resets and the single text setting. Import after tokens.css. */
+/* scrollbars are hidden everywhere; areas still scroll with the wheel, trackpad and keyboard */
+* { box-sizing: border-box; scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; width: 0; height: 0; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--font); font-variation-settings: 'wdth' var(--wdth);
+  font-weight: var(--weight); font-size: var(--size); line-height: var(--leading); letter-spacing: var(--tracking);
+  color: var(--ink-primary); background: var(--bg); -webkit-font-smoothing: antialiased;
+}
+/* native controls inherit the text setting instead of the browser's */
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
+p { margin: 0; }
+
+/* the few icons the language uses */
+svg.i { width: 16px; height: 16px; flex: none; display: inline-block; vertical-align: -3px; }
+svg.i.xs { width: 12px; height: 12px; }
+
+.spacer { flex: 1; }
+.dim { color: var(--ink-secondary); }

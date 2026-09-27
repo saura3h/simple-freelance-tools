@@ -1,0 +1,144 @@
+/* Components. Everything is text; state is the primary / secondary / disabled text colour and underline. Import after base.css. */
+
+/* ---- text button ---- */
+.btn { font: inherit; letter-spacing: inherit; color: var(--ink-primary); border: 0; background: none; padding: 4px 0; height: auto; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.btn { transition: opacity var(--t-hover), color var(--t-hover); }
+a.btn { text-decoration: none; }   /* links styled as buttons underline on hover only */
+.btn:hover { text-decoration: underline; text-underline-offset: var(--underline); }
+.btn:disabled { color: var(--ink-disabled); cursor: default; text-decoration: none; }
+.btn.sm { padding: 0; }
+.btn.secondary { color: var(--ink-secondary); }             /* secondary until hovered; brightens and underlines like a primary button */
+.btn.secondary:hover, .btn.secondary.armed { color: var(--ink-primary); }
+.btn.secondary:disabled { color: var(--ink-disabled); }
+/* secondary buttons that belong to a row or pick are hidden until the row is hovered */
+.row .btn.secondary, .pick .btn.secondary { opacity: 0; }
+.row:hover .btn.secondary, .pick:hover .btn.secondary { opacity: 1; }
+.row .btn.secondary:hover, .row .btn.secondary.armed, .pick .btn.secondary:hover, .pick .btn.secondary.armed { opacity: 1; color: var(--ink-primary); }
+.btn.armed { text-decoration: none; }           /* two-click confirm state, see ui.confirmClick */
+.actions { display: inline-flex; align-items: center; gap: var(--gap-actions); }
+
+/* ---- tabs: alternatives in a row ---- */
+/* one component for choosing between alternatives (formerly tabs and chips). Wraps when there is no room. */
+.tabs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--gap-tabs); }
+/* a small dot between the options marks the group as one control */
+.tabs > * + *::before { content: '/'; display: inline-block; color: var(--line-strong); margin-right: var(--gap-tabs); pointer-events: none; }
+/* tabs dim through colour, not opacity, so the dot before each one keeps its own shade */
+.tabs > button { font: inherit; letter-spacing: inherit; padding: 4px 0; border: 0; background: none; color: var(--ink-secondary); transition: color var(--t-hover); cursor: pointer; }
+.tabs > button:hover, .tabs > button.on { color: var(--ink-primary); }
+.tabs > button.on { pointer-events: none; cursor: default; }   /* the selected tab is not clickable */
+
+/* ---- list: selectable rows with hover actions ---- */
+.list-h { padding: 24px 0 8px; color: var(--ink-secondary); display: flex; align-items: center; gap: 8px; }
+.list-h.first { padding-top: 0; }
+.list-h.bar { opacity: 1; height: 36px; padding: 0 0 8px; }   /* header carrying a button: only the title is dimmed */
+.list-h.bar .t { color: var(--ink-secondary); }
+.list-empty { padding: 6px 0 6px 8px; color: var(--ink-disabled); }   /* empty states use the disabled colour */
+.list-top { display: flex; align-items: center; height: 36px; }   /* the list's main action, top left */
+.row { position: relative; padding: 10px 0 10px 8px; cursor: pointer; display: block; }   /* rows sit 8px in from their group header */
+.row .n { display: flex; align-items: center; gap: 6px; color: var(--ink-primary); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: var(--underline); transition: text-decoration-color var(--t-hover); }
+.row:hover .n { text-decoration-color: var(--ink-secondary); }
+.row.on .n { text-decoration-color: var(--ink-primary); }
+.row .sub { color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .dot { width: 7px; height: 7px; border-radius: 50%; background: #e0a100; flex: none; }
+.btn.row-action { position: absolute; right: 0; top: 10px; }
+.row.enter, .row.leave { overflow: hidden; }
+
+/* ---- forms ---- */
+.field { display: block; position: relative; margin-bottom: 10px; }
+.field .fl, .fl { display: block; color: var(--ink-secondary); margin-bottom: 4px; }
+.field .fl { margin-bottom: 2px; }
+/* a label directly followed by a box sits inside it, top-left; the box grows to fit label + value (52px for one line) */
+.field:has(> .fl + :is(.in, .sel)) > .fl { position: absolute; top: 2px; left: 6px; right: 6px; z-index: 1; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.field > .fl + .in, .field > .fl + .sel .in { height: 52px; padding: 24px 6px 4px; }
+.field > .fl + textarea.in { height: auto; padding: 24px 6px 6px; min-height: calc(1lh + 30px); }   /* never shorter than label + one line of value */
+.in { width: 100%; height: 30px; padding: 0 6px; border: 0; border-radius: var(--radius); background: var(--fill); color: var(--ink-primary); transition: background-color var(--t-hover); }   /* filled, no border */
+.in:hover { background: var(--fill-hover); }
+.in:focus { outline: 0; background: var(--fill); }   /* typing returns to the resting fill, even under the pointer */
+.in:disabled { color: var(--ink-disabled); background: var(--soft); cursor: default; }
+.in[readonly] { background: var(--soft); }
+textarea.in { display: block; height: auto; padding: 6px;   /* block: an inline textarea leaves a descender gap below it */ resize: vertical; min-height: calc(1lh + 12px); line-height: 1.4; }   /* never shorter than one line of value */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hint { color: var(--ink-secondary); margin: 4px 0 0; }
+/* image picker: label, a preview box, Upload / Replace / Remove */
+.imgpick-box { height: 58px; display: flex; align-items: center; padding: 0 10px; border-radius: var(--radius); background: var(--fill); }
+.imgpick-box img { max-height: 40px; max-width: 100%; display: block; object-fit: contain; }
+.imgpick-empty { color: var(--ink-disabled); }
+.imgpick .actions { margin-top: 2px; }
+/* editable key/value rows with reorder and remove */
+.kvrow { display: grid; grid-template-columns: 1fr 1.3fr auto; gap: 8px; margin-bottom: 10px; align-items: center; }
+.row-tools { display: flex; gap: 6px; }
+.row-tools svg { width: 16px; height: 16px; display: block; }
+
+/* ---- in-place editable text ---- */
+/* the same filled container as inputs, 2px each side and nothing above or below; the negative margin keeps the text where it was */
+.ed { cursor: text; outline: none; padding: 0 2px; margin: 0 -2px; border-radius: var(--radius); background: transparent; transition: background-color var(--t-hover); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.ed:hover, .ed:focus { background: var(--fill-hover); }   /* the container shows under the pointer and while editing */
+.ed:focus { caret-color: var(--ink); }
+.ed:empty::before { content: '\00a0'; }
+
+/* ---- panels: dialog and popover ---- */
+dialog { border: 0; border-radius: var(--radius); padding: 0; width: 460px; max-width: 92vw; box-shadow: none; font: inherit; letter-spacing: inherit; color: var(--ink); }
+dialog::backdrop { background: rgba(140,140,140,.5); backdrop-filter: blur(1px); }
+.dlg-h { display: flex; align-items: center; gap: 8px; padding: var(--pad) var(--pad) 0; }
+.dlg-b { padding: var(--pad); max-height: 68vh; overflow: auto; }
+.dlg-f { display: flex; gap: var(--gap-actions); justify-content: flex-end; padding: 0 var(--pad) var(--pad); }
+.dlg-f.left { justify-content: flex-start; }
+/* inverted surfaces redefine --ink so everything inside flips with no extra rules */
+.pop, .toast, .inverse {
+  --ink: var(--ink-inverse); --bg: var(--bg-inverse); --soft: var(--soft-inverse); --fill: var(--fill-inverse); --fill-hover: var(--fill-hover-inverse); --muted: var(--muted-inverse);
+  --line: var(--line-inverse); --line-strong: var(--line-strong-inverse); --line-focus: var(--line-focus-inverse);
+  --dim: var(--dim-inverse); --dim-disabled: var(--dim-disabled-inverse);
+  background: var(--bg); color: var(--ink); border: 0;
+}
+.pop { position: absolute; width: 300px; border-radius: var(--radius); padding: var(--pad-pop); z-index: 5; }
+
+/* picker rows inside a dialog */
+.pick { display: flex; align-items: baseline; gap: 12px; padding: 6px 0; cursor: pointer; }
+.pick > div { flex: 1; min-width: 0; }
+.pick .pn { color: var(--ink-primary); text-decoration: underline; text-decoration-color: transparent; text-underline-offset: var(--underline); transition: text-decoration-color var(--t-hover); }
+.pick:hover .pn { text-decoration-color: var(--ink-secondary); }
+.pick.on .pn { text-decoration-color: var(--ink-primary); }
+.pick .ps { color: var(--ink-secondary); }
+.pick .btn { flex: none; }
+
+/* ---- calendar (used by ui.datePicker) ---- */
+.fl + .cal { margin-top: 12px; }   /* a label above the calendar ("Or pick a date") gets room before the month bar */
+.cal-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.cal-nav { font: inherit; border: 0; background: none; color: var(--ink-secondary); transition: color var(--t-hover); cursor: pointer; padding: 0 6px; height: 22px; display: inline-flex; align-items: center; }
+.cal-nav:hover { color: var(--ink-primary); }
+.cal-g { display: grid; grid-template-columns: repeat(7, 30px); gap: 2px 0; text-align: center; }
+.cal-d { color: var(--ink-disabled); }
+.cal-day { font: inherit; letter-spacing: inherit; border: 0; background: none; color: var(--ink-secondary); cursor: pointer; padding: 2px 0; line-height: 22px; transition: color var(--t-hover); }
+.cal-day:hover { color: var(--ink-primary); text-decoration: underline; text-decoration-color: var(--ink-secondary); text-underline-offset: var(--underline); }
+.cal-day.on { color: var(--ink-primary); text-decoration: underline; text-decoration-color: var(--ink-primary); text-underline-offset: var(--underline); }
+.cal-day.today { color: var(--ink-primary); }
+.cal-day:disabled { color: var(--ink-disabled); text-decoration: none; cursor: default; }
+.pop-sep { height: 1px; background: var(--line); margin: 12px 0; }   /* between presets and the calendar in a date picker */
+
+/* ---- tooltip ----
+   Wrap the control: <span class="tip" data-tip="...">. Shows at once on hover, below and right-aligned.
+   An empty data-tip shows nothing. A disabled control inside passes the pointer to the wrapper. */
+.tip { position: relative; display: inline-flex; }
+.tip > :disabled { pointer-events: none; }
+.tip[data-tip]:not([data-tip=""]):hover::after { content: attr(data-tip); position: absolute; top: calc(100% + 6px); right: 0; width: max-content; max-width: 280px; white-space: normal; text-align: left; background: var(--bg-inverse); color: var(--ink-inverse); border: 0; border-radius: var(--radius); padding: var(--pad-chip); z-index: 10; pointer-events: none; }
+
+/* ---- banner: flush across the top of the window, one line with a hairline under it (see shared/dataset.js) ---- */
+.banner { position: fixed; left: 0; right: 0; top: 0; height: var(--banner-h); display: flex; align-items: center; gap: var(--gap-actions); padding: 17px 16px; border-bottom: 1px solid var(--line); background: var(--bg); z-index: 9; }
+body.has-banner .app { padding-top: var(--banner-h); }   /* the page starts under the banner */
+.banner > span:first-child { color: var(--ink-secondary); }
+
+/* ---- toast ---- */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(6px); padding: var(--pad-chip); border-radius: var(--radius); opacity: 0; transition: opacity .18s, transform .18s; pointer-events: none; z-index: 10; }
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---- content swap ---- */
+.fade { transition: opacity var(--t-fade) ease; }
+.fade.fading { opacity: 0; }
+.swap { transition: opacity var(--t-fade) ease, transform .18s var(--ease-out); }
+.swap.out { opacity: 0; transition: opacity var(--t-fade) ease-in; }
+.swap.below { opacity: 0; transform: translateY(32px); }
+
+.empty { color: var(--ink-disabled); padding: 40px; text-align: center; }
+
+/* ---- data folder line (store.js) ---- */
+.store-bar { padding: 0 0 12px; }

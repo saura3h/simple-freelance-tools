@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contracts</title>
+<link rel="icon" href="design/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="design/tokens.css">
+<link rel="stylesheet" href="design/base.css">
+<link rel="stylesheet" href="design/components.css">
+<style>
+@page { size: A4; margin: 0; }
+/* document-only tokens, same values as the invoice page */
+:root { --rule: #ebebeb; --tint: #dae4fb; --paper: #fafafa; --ls-body: 0.2pt; --ls-label: 0.3pt; }
+
+/* ---------- app layout: list | document | editor ---------- */
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100vh; }
+.sidebar { position: relative; min-height: 0; overflow: hidden; background: #fff; }
+.clist { height: 100%; overflow: auto; padding: 16px; }
+.main { position: relative; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.preview { position: relative; flex: 1; overflow: auto; padding: 16px 28px 56px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: #fff; }
+.pv-tools { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.row-acts { position: absolute; right: 0; top: 10px; }
+.pv-left { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap-actions); }
+.print-msg { display: none; }
+.scaleBox { position: relative; flex: none; }
+.scale { transform-origin: top left; }
+
+/* ---------- editor (replaces the list while editing) ---------- */
+.side { position: relative; height: 100%; overflow: auto; padding: 16px 20px 64px; }
+.sh { display: flex; align-items: center; gap: 8px; padding: 28px 0 10px; }
+.sh:first-child, .sh.first { padding-top: 0; }
+.sh .t { color: var(--ink-secondary); }
+.ed-name { margin-top: 16px; }
+.sel { position: relative; display: block; }
+.sel select { appearance: none; -webkit-appearance: none; padding-right: 26px; cursor: pointer; }
+.sel svg { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; pointer-events: none; color: var(--ink-secondary); }
+.fl + .sel svg { top: calc(50% + 9px); }   /* labelled select: centre the caret on the value line */
+button.in.date { text-align: left; cursor: pointer; }
+textarea.in.grow { resize: none; overflow: hidden; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+.term-foot { display: flex; align-items: center; justify-content: space-between; margin: -2px 0 10px; }
+.stage { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 8px; align-items: start; margin-bottom: 6px; }
+.pct { position: relative; display: block; }
+.pct .in { padding-right: 20px; }
+.pct span { position: absolute; right: 6px; top: 4px; pointer-events: none; }
+.stage .row-tools { height: 30px; align-items: center; }
+/* party summary: the whole card opens the dialog */
+.card { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; transition: border-color var(--t-hover); }
+.card:hover { border-color: var(--line-strong); }
+.card .placeholder { color: var(--ink-disabled); }
+.card .sub { color: var(--ink-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.total-line { margin: -4px 0 10px; }
+.g-money { display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 10px; }
+.g-limit { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
+.g-limit.range { grid-template-columns: 112px minmax(0, 1fr) minmax(0, 1fr); }
+.g-limit.solo { grid-template-columns: 112px; }
+
+/* ---------- the agreement pages (units in pt, A4) ---------- */
+.pages { display: flex; flex-direction: column; gap: 16px; width: 595pt; }
+.page {
+  position: relative; width: 595pt; height: 842pt; background: #fff; color: var(--ink); border: 1px solid var(--line); overflow: hidden;
+  display: flex; flex-direction: column;
+  font-family: var(--font); font-variation-settings: 'wdth' var(--wdth); font-size: 9pt; line-height: 15pt; letter-spacing: var(--ls-body); font-weight: 450;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.page p { margin: 0; }
+.pg-header { flex: none; background: var(--paper); padding: 32pt 48pt; display: flex; justify-content: space-between; align-items: flex-start; gap: 24pt; }
+.pg-brand { display: flex; gap: 12pt; align-items: flex-start; }
+.pg-logo { height: 20pt; display: flex; align-items: center; }
+.pg-logo img { width: 21.9pt; height: 10pt; display: block; object-fit: contain; }
+.pg-title { font-weight: 600; font-size: 16pt; line-height: 20pt; letter-spacing: 0; }
+.pg-meta { width: 190pt; }
+.kv { display: flex; flex-direction: column; gap: 2pt; }
+.kv-row { display: flex; align-items: flex-start; }
+.kv-row .k { color: var(--muted); white-space: nowrap; }
+.kv-row .v { flex: 1; min-width: 0; text-align: right; padding-left: 12pt; }
+.flow { flex: 1; min-height: 0; overflow: hidden; padding: 32pt 48pt 0; }
+.page + .page .flow { padding-top: 48pt; }
+.pg-foot { flex: none; height: 44pt; padding: 0 48pt; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; line-height: 13pt; letter-spacing: var(--ls-label); color: var(--muted); }
+.block-label { font-weight: 600; }
+.block-data { padding-top: 4pt; display: flex; flex-direction: column; gap: 2pt; }
+.block-data p { white-space: pre-line; overflow-wrap: anywhere; }
+.block-data .gap { margin-top: 6pt; }
+.b { padding-top: 8pt; }
+.b-h { padding-top: 30pt; padding-bottom: 6pt; }
+/* indents: clause text starts under the heading title; numbered paragraphs hang their number there, lettered items go one step further */
+.b-h .block-label { display: grid; grid-template-columns: 24pt minmax(0, 1fr); }
+.b-i, .b-sub { display: grid; padding: 3pt 0 3pt 24pt; }
+.b-i { grid-template-columns: 28pt minmax(0, 1fr); }
+.b-i.nn { grid-template-columns: minmax(0, 1fr); }
+.b-sub { grid-template-columns: 20pt minmax(0, 1fr); padding-left: 52pt; }
+.b-sub.nn { padding-left: 24pt; }
+.b-sub.plain { padding-left: 0; }
+.b-i .no, .b-sub .lt { color: var(--muted); }
+.b-i .ti { font-weight: 600; }
+.b-parties { display: flex; gap: 40pt; padding-top: 20pt; padding-bottom: 12pt; }
+.b-sign { display: flex; gap: 40pt; padding-top: 30pt; }
+.party, .sg { flex: 1; min-width: 0; }
+/* a 150pt tall space above a signature line that runs the full column; the stamp is centred vertically, left aligned */
+.sig-box { height: 150pt; border-bottom: 0.5pt solid var(--rule); display: flex; align-items: center; justify-content: flex-start; }
+.sig-box img { width: 150pt; max-width: 100%; height: auto; display: block; }
+.sig-cap { color: var(--muted); }
+.sg .kv-row .k { width: 58pt; }
+.sg .kv-row .v { text-align: left; padding-left: 0; }
+.flow > .b:first-child { padding-top: 0; }
+.ph { color: var(--accent); }
+
+@media print {
+  html, body { background: #fff; height: auto; overflow: visible; }
+  .sidebar, .pv-tools, .pop, .toast, .banner, dialog { display: none !important; }
+  /* Cmd+P with blanks left prints a note instead of the agreement */
+  body.print-blocked .scaleBox { display: none !important; }
+  body.print-blocked .print-msg { display: block; padding: 48pt; }
+  .app { display: block; height: auto; }
+  .main { display: block; overflow: visible; height: auto; }
+  .preview { display: block !important; padding: 0; overflow: visible; }
+  .scaleBox { width: auto !important; height: auto !important; }
+  .scale { transform: none !important; }
+  .pages { gap: 0; }
+  .page { border: 0; height: 841pt; break-after: page; }
+  .page:last-child { break-after: auto; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sidebar">
+    <div class="clist" id="clist"></div>
+    <div class="side" id="side" hidden></div>
+  </aside>
+
+  <main class="main">
+    <div class="preview" id="preview">
+      <div class="pv-tools" id="pvTools">
+        <span class="pv-left"><button class="btn" id="btnEdit">Edit</button></span>
+        <span class="actions">
+          <button class="btn" id="btnDel">Discard changes</button>
+          <button class="btn secondary" id="btnDup">Duplicate</button>
+          <span class="tip" id="pdfTip"><button class="btn secondary" id="btnPdf">Download</button></span>
+          <button class="btn" id="btnSave">Save agreement</button>
+        </span>
+      </div>
+      <p class="print-msg">Fill in the missing values before downloading this agreement.</p>
+      <div class="scaleBox" id="scaleBox"><div class="scale" id="scale"></div></div>
+    </div>
+  </main>
+
+</div>
+
+<script src="design/ui.js"></script>
+<script src="shared/dataset.js"></script>
+<script src="design/store.js"></script>
+<script>dataset.loadFiles('contracts', 'parties');</script>
+<script src="shared/parties.js"></script>
+<script>
+/* ======================= basics ======================= */
+const LS_KEY = dataset.key('scs-contracts-own');   // only the user's own data is saved; the sample set lives in the seeds (shared/dataset.js)
+let disk = null; // folder store, attached after first render
+const DOC_TITLE = 'Service Agreement';
+const { esc, field, today, addDays, fmtDate } = ui;
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const clone = o => JSON.parse(JSON.stringify(o));
+const norm = s => String(s || '').trim().toLowerCase();
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+
+function fmtNum(n, grouping = 'indian') {
+  const neg = n < 0; n = Math.abs(n);
+  let [int, dec] = n.toFixed(2).split('.');
+  if (grouping === 'indian') { const last3 = int.slice(-3), rest = int.slice(0, -3); int = rest ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3 : last3; }
+  else int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return (neg ? '-' : '') + int + (dec !== '00' ? '.' + dec : '');
+}
+const money = (n, code) => { code = String(code || 'INR').toUpperCase(); return `${code} ${fmtNum(n, code === 'INR' ? 'indian' : 'western')}`; };
+// Documents print dates as "23 August 2026".
+const longDate = iso => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const oneLine = s => String(s || '').split('\n').map(l => l.trim().replace(/,$/, '')).filter(Boolean).join(', ');
+const letter = j => String.fromCharCode(97 + (j % 26)).repeat(Math.floor(j / 26) + 1);
+const plural = (n, unit) => `${n} ${n === 1 ? unit : unit + 's'}`;
+// Straight quotes in the wording become typographic ones on the page.
+const smart = s => String(s).replace(/(^|[\s(\[])"/g, '$1“').replace(/"/g, '”').replace(/(^|[\s(\[])'/g, '$1‘').replace(/'/g, '’');
+
+/* ======================= parties ======================= */
+const ENTITIES = {
+  individual:  { label: 'Individual' },
+  proprietor:  { label: 'Sole proprietorship' },
+  partnership: { label: 'Partnership firm' },
+  llp:         { label: 'Limited liability partnership' },
+  company:     { label: 'Company registered in India' },
+  foreign:     { label: 'Company outside India' },
+};
+const entityLine = p => p.entity === 'foreign' ? `Company incorporated in ${p.country || 'another country'}` : (ENTITIES[p.entity] || ENTITIES.individual).label;
+// The 6th character of a GSTIN is the PAN's holder type: P person, C company, F firm or LLP.
+function guessEntity(p, name) {
+  if (p.country && norm(p.country) !== 'india') return 'foreign';
+  const t = String(p.gstin || '').trim().toUpperCase()[5];
+  if (t === 'P') return 'proprietor';
+  if (t === 'C') return 'company';
+  if (t === 'F') return /\bllp\b/i.test(name) ? 'llp' : 'partnership';
+  if (/\bllp\b/i.test(name)) return 'llp';
+  if (/\b(pvt|private|limited|ltd)\b/i.test(name)) return 'company';
+  return 'individual';
+}
+// Saved parties are shared with the invoice tool (shared/parties.js): companies are its clients, consultant profiles its
+// issuers. Issuers keep their name in `company`, clients in `name`. Agreements keep their own copy (a snapshot), so editing
+// a saved party later leaves old agreements alone.
+const DEFAULT_SEAL = 'assets/stamp.svg';   // used until a consultant profile uploads its own
+const pname = p => p.name ?? p.company ?? '';
+const nameKey = role => role === 'consultant' ? 'company' : 'name';
+const blankProfile = role => role === 'consultant'
+  ? { id: uid(), label: '', company: '', entity: 'proprietor', gstin: '', address: '', country: 'India', state: '', email: '', signatory: '', designation: 'Proprietor' }
+  : { id: uid(), name: '', entity: 'individual', gstin: '', address: '', country: 'India', state: '', email: '', signatory: '', designation: '', currency: 'INR' };
+const snapshot = p => {
+  const name = pname(p), entity = p.entity || guessEntity(p, name);
+  const out = { profileId: p.id, name, entity, gstin: p.gstin || '', address: oneLine(p.address), country: p.country || 'India', email: p.email || '',
+    signatory: p.signatory || ((entity === 'individual' || entity === 'proprietor') && !p.company ? name : ''),
+    designation: p.designation || (entity === 'proprietor' ? 'Proprietor' : '') };
+  if (p.seal !== undefined) out.seal = p.seal;   // the consultant's signature and seal travels with the agreement
+  return out;
+};
+const emptyParty = () => ({ profileId: null, name: '', entity: 'individual', gstin: '', address: '', country: 'India', email: '', signatory: '', designation: '', signDate: '' });
+
+// Old saves kept their own parties ({ company, consultant }); fold them into the shared lists once.
+function mergeOldParties(old) {
+  if (!old) return;
+  parties.merge('clients', (old.company || []).map(({ label, ...p }) => p));
+  parties.merge('issuers', (old.consultant || []).map(({ name, ...p }) => ({ ...p, company: name })));
+}
+// state.parties.company / .consultant read and write the shared lists; they are not saved with the agreements.
+function sharedParties(s) {
+  const d = Object.getOwnPropertyDescriptor(s, 'parties');
+  if (d && d.enumerable) { mergeOldParties(s.parties); delete s.parties; }
+  const view = { get company() { return parties.data.clients; }, set company(v) { parties.data.clients = v; }, get consultant() { return parties.data.issuers; }, set consultant(v) { parties.data.issuers = v; } };
+  Object.defineProperty(s, 'parties', { get: () => view, enumerable: false, configurable: true });
+}
+
+/* ======================= fees ======================= */
+const MODELS = { fixed: 'Fixed', hourly: 'Hourly', weekly: 'Weekly' };
+const GST = { inclusive: ['Included', '(inclusive of GST)'], plus: ['Plus GST', 'plus applicable GST'], none: ['None', ''] };
+const LIMITS = { fixed: 'Exactly', max: 'Up to', min: 'At least', range: 'Between', ongoing: 'Ongoing' };
+const WEEK_LIMITS = { fixed: 'Exactly', ongoing: 'Ongoing' };
+const CYCLES = { weekly: ['Weekly', 'at the end of each week'], biweekly: ['Every 2 weeks', 'at the end of every two weeks'], monthly: ['Monthly', 'at the end of each calendar month'] };
+const blankFee = () => ({ model: 'fixed', currency: 'INR', gst: 'inclusive', amount: '', hours: '', rate: '', hoursLimit: 'fixed', hoursMax: '', weeks: '', weeksLimit: 'fixed', cycle: 'monthly' });
+const gstNote = c => GST[c.fee.gst]?.[1] || '';
+const stageSum = c => Math.round((c.stages || []).reduce((s, x) => s + num(x.pct), 0) * 100) / 100;
+function stageTexts(c) {
+  const amt = num(c.fee.amount);
+  return (c.stages || []).map(s => {
+    const p = num(s.pct), when = String(s.when || '').trim().replace(/[.;]$/, '');
+    return `${p}% of the Fees${amt ? ` (${money(Math.round(amt * p) / 100, c.fee.currency)})` : ''}${when ? ' ' + when : ''}.`;
+  });
+}
+function endDate(c) {
+  const n = Math.round(num(c.tenure?.n)); if (!c.startDate || !n) return '';
+  if (c.tenure.unit === 'months') { const d = new Date(c.startDate + 'T00:00:00'); d.setMonth(d.getMonth() + n); return ui.isoLocal(d); }
+  return addDays(c.startDate, c.tenure.unit === 'days' ? n : n * 7);
+}
+// Weekly fees run for the typed number of weeks, or for the tenure when that is given in weeks.
+function tenureWeeks(c) { const n = num(c.tenure?.n); if (!n) return 0; if (c.tenure.unit === 'weeks') return n; if (c.tenure.unit === 'days' && n % 7 === 0) return n / 7; return 0; }
+const weeksOf = c => num(c.fee.weeks) || tenureWeeks(c);
+function totals(c) {
+  const f = c.fee;
+  if (f.model === 'fixed') return { total: num(f.amount), totalMax: 0 };
+  if (f.model === 'weekly') return { total: f.weeksLimit === 'ongoing' ? 0 : num(f.rate) * weeksOf(c), totalMax: 0 };
+  if (f.hoursLimit === 'ongoing') return { total: 0, totalMax: 0 };
+  return { total: num(f.rate) * num(f.hours), totalMax: f.hoursLimit === 'range' ? num(f.rate) * num(f.hoursMax) : 0 };
+}
+
+/* ======================= values the wording uses ======================= */
+// {key} in the wording prints the value; a blank value prints as [Label] in the accent colour.
+// derived values are left out of the "still blank" list because their inputs are already in it.
+const TOKENS = {
+  company: ['Company name', c => c.company.name],
+  consultant: ['Consultant name', c => c.consultant.name],
+  companyAddress: ['Company address', c => oneLine(c.company.address)],
+  companyEmail: ['Company email', c => c.company.email],
+  consultantAddress: ['Consultant address', c => oneLine(c.consultant.address)],
+  consultantEmail: ['Consultant email', c => c.consultant.email],
+  executionDate: ['Execution date', c => longDate(c.executionDate)],
+  startDate: ['Start date', c => longDate(c.startDate)],
+  endDate: ['End date', c => longDate(endDate(c)), true],
+  tenure: ['Tenure', c => num(c.tenure?.n) ? plural(num(c.tenure.n), String(c.tenure.unit || 'weeks').replace(/s$/, '')) : ''],
+  scope: ['Scope', c => c.scope],
+  fee: ['Fee', c => num(c.fee.amount) ? [money(num(c.fee.amount), c.fee.currency), gstNote(c)].filter(Boolean).join(' ') : ''],
+  hours: ['Hours', c => num(c.fee.hours) ? plural(num(c.fee.hours), 'hour') : ''],
+  hoursMax: ['Maximum hours', c => num(c.fee.hoursMax) ? plural(num(c.fee.hoursMax), 'hour') : ''],
+  rate: ['Rate', c => num(c.fee.rate) ? money(num(c.fee.rate), c.fee.currency) : ''],
+  weeks: ['Weeks', c => weeksOf(c) ? plural(weeksOf(c), 'week') : ''],
+  total: ['Total', c => totals(c).total ? money(totals(c).total, c.fee.currency) : '', true],
+  totalMax: ['Maximum total', c => totals(c).totalMax ? money(totals(c).totalMax, c.fee.currency) : '', true],
+  cycle: ['Invoicing cycle', c => CYCLES[c.fee.cycle]?.[1] || ''],
+  stages: ['Payment stages', c => stageTexts(c).join(' ')],
+};
+
+/* ======================= the template ======================= */
+// Wording markup: a blank line starts a new paragraph (numbered when a clause has more than one),
+// "- " starts a lettered sub-item, "# " gives a paragraph a heading. {parties} and {signatures} on their own are blocks.
+// {clause:id} prints "Clause n". A clause's text can be a function of the agreement.
+const TAX = `Tax will be deducted as per the applicable laws.
+
+The Company shall reimburse the Consultant for all out-of-pocket expenses incurred by the Consultant in connection with the Services, provided the Consultant issues proper receipts for such expenditure.`;
+const INTEREST = `Any undisputed amount not paid by the due date shall accrue interest at the rate of 1.5% per month, from the due date until the date of payment.`;
+function feesText(c) {
+  const f = c.fee;
+  if (f.model !== 'hourly' && f.model !== 'weekly') return `Subject to any specific terms agreed in writing between the Parties, the Company shall pay the Consultant a total fee of {fee}${num(f.hours) ? ' for {hours} of work' : ''} (the "Fees") for the provision of the Services.
+
+The Fees will be paid in the following stages:
+- {stages}
+
+${TAX}
+
+The Consultant shall submit invoices on a milestone basis for the Services rendered, along with reasonable supporting details.
+
+${INTEREST}`;
+  const hourly = f.model === 'hourly', gst = gstNote(c) ? ' ' + gstNote(c) : '';
+  const extent = !hourly
+    ? (f.weeksLimit === 'ongoing' ? 'The Fees shall be charged on an ongoing basis for each week in which the Services are rendered.' : 'The engagement covers {weeks}, for a total of {total}.')
+    : {
+      fixed: 'The engagement covers {hours} of work, for a total of {total}.',
+      max: 'The Consultant shall work up to {hours}, and the Fees shall not exceed {total} without the prior written approval of the Company.',
+      min: 'The Company commits to a minimum of {hours} of work, and the Fees shall be at least {total}.',
+      range: 'The engagement covers between {hours} and {hoursMax} of work, for a total of between {total} and {totalMax}.',
+      ongoing: 'The Fees shall be charged on an ongoing basis for the hours actually worked.',
+    }[f.hoursLimit] || '';
+  return `Subject to any specific terms agreed in writing between the Parties, the Company shall pay the Consultant fees (the "Fees") at the rate of {rate} per ${hourly ? 'hour' : 'week'}${gst} for the provision of the Services. ${extent}
+
+The Consultant shall invoice the Company {cycle} in arrears for the ${hourly ? 'hours worked' : 'Services rendered'} in that period, along with reasonable supporting details${hourly ? ' of the hours worked' : ''}.
+
+${TAX}
+
+${INTEREST}`;
+}
+const TEMPLATE = [
+{ id: 'intro', fixed: true, text:
+`This Service Agreement (the "Agreement") lays down the terms of engagement agreed upon by the Company and the Consultant. It is executed on {executionDate} (the "Execution Date") by and between:
+
+{parties}
+
+{company} (hereinafter referred to as the "Company", which expression shall, unless repugnant to the context or meaning thereof, be deemed to include its successors, legal heirs, executors, administrators and permitted assigns) of the FIRST PART;
+
+AND
+
+{consultant} (hereinafter referred to as the "Consultant", which expression shall, unless repugnant to the context or meaning thereof, be deemed to include its successors, legal heirs, executors, administrators and permitted assigns) of the SECOND PART.
+
+The Company and the Consultant are hereinafter individually referred to as a "Party" and collectively as the "Parties".
+
+WHEREAS the Parties desire to enter into this Agreement to define and set forth the terms and conditions of the engagement of the Consultant by the Company;
+
+NOW, THEREFORE, IN CONSIDERATION OF THE MUTUAL PROMISES AND COVENANTS HEREIN CONTAINED, THE PARTIES HERETO AGREE AS FOLLOWS:` },
+
+{ id: 'engagement', title: 'Terms and conditions of engagement', text:
+`The Consultant has been engaged from {startDate}, which shall also be deemed to be the date of acceptance of these terms, to provide the Company with the services described in {clause:scope} (the "Services"), together with such other services as may be reasonably requested in connection with this Agreement.
+
+The Consultant agrees to perform the Services in a timely manner and to exercise all reasonable skill and care in the performance of the Services.
+
+The Consultant shall provide the Company promptly with any information, data or documents which may be reasonably required in connection with the Services under this Agreement.
+
+Unless otherwise agreed by the Parties in writing, the Company shall at its own expense supply the Consultant with all necessary documents, materials, data and other information relating to the Services (the "Company Materials") within sufficient time to enable the Consultant to provide the Services in accordance with this Agreement.
+
+The Company shall provide reasonable co-operation to the Consultant in relation to the performance of the Services under this Agreement.` },
+
+{ id: 'tenure', title: 'Tenure', text:
+`The initial tenure of this Agreement will be {tenure}, from {startDate} until {endDate} (the "Initial Term").` },
+
+{ id: 'scope', title: 'Scope', text: `{scope}` },
+
+{ id: 'fees', title: 'Fees and expenses', text: feesText },
+
+{ id: 'duties', title: 'Duties and obligations', text:
+`The Consultant shall diligently provide the Services and shall execute all assignments and projects in a timely manner with the highest professional standards and ethical business practices.
+
+The Consultant shall obtain and maintain such licences, permissions and memberships as are required for it to perform the Services under this Agreement.` },
+
+{ id: 'warranties', title: 'Representations and warranties', text:
+`Each Party hereby warrants and represents that:
+- it has the requisite power, legal capacity and authority to enter into this Agreement and to perform its obligations hereunder;
+- nothing contained in any agreement or applicable law prohibits it from entering into and performing its obligations under this Agreement, or would conflict with the terms of this Agreement; and
+- this Agreement constitutes a legal, valid and binding obligation of it, enforceable against it in accordance with the terms of this Agreement.` },
+
+{ id: 'confidentiality', title: 'Confidentiality', text:
+`All information relating to the Company or given by the Company to the Consultant pursuant to this Agreement, either in tangible or intangible form, shall be deemed to be confidential (the "Confidential Information") for the purpose of this Agreement.
+
+The Consultant shall not use the Company's Confidential Information for any purpose other than as required to perform its obligations under this Agreement, and shall ensure that its representatives do not disclose to any person any Confidential Information of the Company at any time, or make or authorise any public or private announcement or communication concerning this Agreement.
+
+The Consultant shall also ensure that its representatives are provided access to the Company's Confidential Information only on a need-to-know basis and solely for the performance of this Agreement, and that such representatives are bound by the same obligations. If the Consultant is required to disclose any of the Company's Confidential Information to a statutory authority, the Consultant shall, promptly upon receiving the disclosure request and to the extent legally permissible, notify the Company of such disclosure requirement and assist in resisting such disclosure.
+
+The Consultant agrees that the Confidential Information which has been or will be disclosed by or on behalf of the Company will be received by the Consultant in confidence and will be used only for performance under and in accordance with this Agreement.
+
+The Consultant acknowledges and agrees that all Confidential Information constitutes valuable, special and unique assets of the business of the Company. Accordingly, the Consultant agrees that, in the event of any breach of {clause:confidentiality}, in addition to any other remedies at law or in equity, the Company shall be entitled to equitable relief, including injunctive relief and specific performance.
+
+The disclosure and supply of the Confidential Information shall not, in any case or for any reason whatsoever, cause a transfer of ownership of such information or an assignment of Intellectual Property Rights in connection with the same.` },
+
+{ id: 'ip', title: 'Intellectual property rights', text:
+`All Intellectual Property Rights comprised in any and all materials (including software, source code, documentation, data, concepts and ideas) or any part thereof created or developed (whether jointly or independently by either Party) during the term of this Agreement (collectively, the "Work Product") shall, unless otherwise expressly agreed between the Parties, be deemed to be irrevocably assigned to and shall vest in the Company upon creation without further charge. If required by the Company, the Consultant shall do all things and sign all documents necessary to vest in the Company all such Intellectual Property Rights assigned or otherwise transferred or granted to the Company under this Agreement.
+
+Notwithstanding the above, the Consultant shall retain ownership of all pre-existing intellectual property, tools, frameworks, methodologies and know-how used in performing the Services.
+
+Notwithstanding the foregoing, the Consultant shall have the right to display and reproduce the Work Product in its portfolio, website and marketing materials for promotional purposes, provided that such use does not disclose any Confidential Information of the Company and is subject to the Company's prior written approval, which shall not be unreasonably withheld.` },
+
+{ id: 'liability', title: 'Limitation of liability', text:
+`The total liability of either Party under this Agreement shall not exceed the total Fees paid to the Consultant under this Agreement.` },
+
+{ id: 'termination', title: 'Termination', text:
+`The Company may terminate this Agreement immediately upon written notice to the Consultant if:
+- the Consultant is unable to perform the Services or has materially or repeatedly breached any of the terms of this Agreement;
+- the Consultant fails to meet the required qualifications, or commits any act that demonstrates a disregard for the reputation or legitimate business interests of the Company, as determined by the Company acting reasonably;
+- the Consultant performs the Services, or any part of them, in a manner which is materially unsatisfactory based on reasonable and documented grounds. Where the Company reasonably considers the default in performance to be remediable, it will give the Consultant 30 (thirty) days to remedy the problem to its satisfaction; or
+- any licence, registration or professional membership the Consultant requires to perform the Services is cancelled, forfeited, terminated or is no longer valid for whatever reason, including any disciplinary action taken by the concerned authority.
+
+Termination shall be without prejudice to any rights which may have accrued to either Party prior to termination.` },
+
+{ id: 'post', title: 'Post-termination obligations', text:
+`Upon termination or expiry of this Agreement, for any reason:
+- the Consultant shall immediately cease using and accessing all Company code, software, repositories, systems, credentials, documentation, data, materials and other Confidential Information, except to the extent expressly authorised by the Company in writing;
+- the Consultant shall promptly return or, at the Company's direction, permanently delete and destroy all copies of Company code, software, documentation, data and other materials in its possession, custody or control, including any copies stored on personal or Company-issued computers, laptops, mobile devices, external drives, cloud storage, local repositories, backups or other media;
+- the Consultant shall not retain, reproduce, copy, modify, distribute, use or otherwise access any Company code or materials after termination, except where required by applicable law or expressly authorised by the Company in writing;
+- upon request, the Consultant shall provide written confirmation that the foregoing return and deletion obligations have been completed; and
+- the obligations relating to confidentiality, intellectual property, protection of Company materials and any other provisions which by their nature are intended to survive termination shall continue to remain in effect after termination of this Agreement.` },
+
+{ id: 'notices', title: 'Notices', text:
+`All notices under this Agreement shall be written in English and shall be sent by hand, by courier or by email to the applicable Party at the contact details indicated below, or to such other address or email address as a Party shall designate by similarly giving notice to the other Party:
+- if to the Company, at {companyAddress}, email: {companyEmail}; and
+- if to the Consultant, at {consultantAddress}, email: {consultantEmail}.` },
+
+{ id: 'misc', title: 'Miscellaneous', text:
+`# Severability
+If any term, condition, provision, covenant or clause of this Agreement is held by a court of competent jurisdiction to be invalid, void or unenforceable, the remainder of the terms, provisions, covenants and restrictions of this Agreement shall remain in full force and effect and shall in no way be affected, impaired or invalidated.
+
+# Further acts and assurances
+Each Party shall co-operate with the other and execute and deliver to the other such instruments and documents and perform (or procure the performance of) such other actions as may be required under applicable law or as may be necessary or reasonably requested from time to time in order to carry out, give effect to and confirm the rights and intended purpose of this Agreement, provided that no such document or agreement shall be inconsistent with the spirit and intent of this Agreement.
+
+# Nature of the relationship
+The Consultant is engaged as an independent contractor and shall not be entitled to any employee benefits from the Company. The arrangements between the Parties under this Agreement have been entered into on a principal-to-principal basis and do not create any employer-employee relationship between the Parties. Nothing contained in this Agreement shall be deemed to create any partnership or joint venture between the Parties, a merger of their assets or their fiscal or other liabilities or undertakings, or any employment or relationship of principal and agent between the Company and/or its representatives, employees and agents and the Consultant. Neither Party shall have any right, power or authority to enter into any agreement for or on behalf of, or incur any obligation or liability of, or otherwise bind, the other Party.
+
+# Dispute resolution
+In the event of any dispute under this Agreement, the same shall be amicably settled between the Parties. If any dispute is not settled amicably, the same shall be referred to a sole arbitrator appointed by both Parties. The award given by the arbitrator shall be final and binding on both Parties. The language of the arbitral proceedings shall be English. The arbitration shall be governed by the Arbitration and Conciliation Act, 1996, and the place of arbitration shall be Bengaluru.
+
+# Governing law
+This Agreement shall be governed by and construed in accordance with the laws of India and shall be subject to the exclusive jurisdiction of the competent courts at Bengaluru.
+
+# Force majeure
+Neither Party shall be liable for any failure or delay in the performance of its obligations under this Agreement if such failure or delay is due to events beyond its reasonable control, including but not limited to acts of God, natural disasters, government actions, war, strikes or system failures.
+
+# Entire agreement
+The Parties confirm and acknowledge that this Agreement constitutes the entire agreement between them, and all earlier agreements, arrangements, letters, correspondence and understandings, whether written or verbal, with respect to the subject matter herein stand superseded by this Agreement. No amendment, modification or addition to this Agreement shall be binding on either Party unless set forth in writing and executed by the Parties through their duly authorised representatives.` },
+
+{ id: 'closing', fixed: true, text:
+`IN WITNESS WHEREOF the Parties hereto have executed this Agreement on the day and year first above written.
+
+{signatures}` },
+];
+const sectionText = (s, c) => typeof s.text === 'function' ? s.text(c) : s.text;
+const DEFAULT_STAGES = [
+  { pct: 30, when: 'before the project is initiated' },
+  { pct: 20, when: 'when the project reaches the middle of the engagement or an equivalent milestone' },
+  { pct: 50, when: 'right before the project concludes and the relevant body of work is handed over to the Company' },
+];
+// Mock agreements, one for each client the mock invoices bill (seed-1 is the original one).
+function seedContracts() {
+  const pick = (role, id) => { const p = parties.SEED[role === 'company' ? 'clients' : 'issuers'].find(x => x.id === id); return p ? snapshot(p) : emptyParty(); };
+  const make = (id, clientId, issuerId, executionDate, signDate, tenure, scope, fee, stages = DEFAULT_STAGES) => {
+    const company = pick('company', clientId), consultant = pick('consultant', issuerId);
+    company.signDate = ''; consultant.signDate = signDate;
+    return { id, executionDate, company, consultant, startDate: executionDate, tenure, scope, fee: { ...blankFee(), ...fee }, stages: clone(stages), createdAt: Date.now(), updatedAt: Date.now() };
+  };
+  return [
+    make('seed-1', 'cl-riya', 'iss-ka', '2026-08-23', '2026-08-22', { n: 3, unit: 'weeks' },
+      'Design consultation for a portfolio web app, including the user experience and design changes to the existing design system.', { amount: 68000, hours: 10 }),
+    make('seed-2', 'cl-acme', 'iss-mh', '2026-03-02', '2026-02-27', { n: 4, unit: 'weeks' },
+      'Product design and creative support for the analytics dashboard, covering research, interface design and design reviews.', { currency: 'GBP', gst: 'none', amount: 4200 }),
+    make('seed-3', 'cl-orbit', 'iss-mh', '2026-05-04', '2026-05-01', { n: 3, unit: 'months' },
+      'Product design and design support for the storefront, including a design system for the web and mobile apps.', { gst: 'plus', amount: 150000 },
+      [{ pct: 30, when: 'before the project is initiated' }, { pct: 50, when: 'when the design system is handed over' }, { pct: 20, when: 'right before the project concludes' }]),
+    make('seed-4', 'cl-harbor', 'iss-mh', '2026-05-02', '2026-05-01', { n: 1, unit: 'months' },
+      'Product design and creative support for the learning platform, billed by the hour.', { model: 'hourly', currency: 'USD', gst: 'none', rate: 65, hours: 20, hoursLimit: 'max', cycle: 'monthly' }),
+    make('seed-5', 'cl-bluebird', 'iss-ka', '2026-07-01', '2026-06-30', { n: 2, unit: 'months' },
+      'Product design for the Atlas web app, including flows, interface design and developer handoff.', { model: 'hourly', gst: 'plus', rate: 5000, hours: 80, hoursLimit: 'fixed', cycle: 'monthly' }),
+  ];
+}
+// A fresh agreement: your own consultant profile if there is one, today's dates, nothing else filled in.
+function blankContract() {
+  const home = state.parties.consultant[0];
+  const consultant = home ? snapshot(home) : emptyParty(); consultant.signDate = today();
+  return { id: uid(), executionDate: today(), company: emptyParty(), consultant, startDate: today(), tenure: { n: 4, unit: 'weeks' },
+    scope: '', fee: blankFee(), stages: clone(DEFAULT_STAGES), createdAt: Date.now(), updatedAt: Date.now() };
+}
+// One-time cleanup, shared with invoices.html: remove everything saved under earlier storage keys, mock data included.
+// Your own data now lives under the -own keys (see shared/dataset.js); the sample data is never saved at all.
+try { if (!localStorage.getItem('scs-cleanup-2')) { ['scs-invoices-v1', 'scs-invoices-v2', 'scs-contracts-v1', 'scs-invoices-demo', 'scs-contracts-demo', 'scs-parties', 'scs-open-sections'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('scs-cleanup-2', '1'); } } catch (e) {}
+function load() {
+  // the sample data set: seeds every time, never read from or written to storage
+  if (dataset.mock) { const seeds = seedContracts(); state = { contracts: seeds, drafts: [], edits: {}, currentId: seeds[0].id }; sharedParties(state); return; }
+  // the data folder's own file (data/contracts.js) is the source; the browser buffer wins only if it is newer
+  const file = window.__scs?.contracts || null, buf = dataset.buffer.read(LS_KEY);
+  const src = buf && (!file || (buf.savedAt || 0) > (file.savedAt || 0)) ? buf : file;
+  if (src) { state = clone(src); migrate(state); return; }
+  state = { contracts: [], drafts: [], edits: {}, currentId: null }; sharedParties(state);   // your own set starts empty
+}
+// First version (2026-09-14) had editable clauses, extra terms and read parties from the invoice tool.
+function migrate(s) {
+  delete s.remembered;
+  sharedParties(s);
+  for (const c of [...s.contracts, ...s.drafts, ...Object.values(s.edits || {})]) {
+    for (const k of ['sections', 'interest', 'curePeriod', 'seat', 'title']) delete c[k];
+    for (const p of [c.company, c.consultant]) delete p.signature;
+    c.company.signDate = ''; // the company's date is left blank to be filled in by hand
+    c.fee = { ...blankFee(), ...c.fee };
+  }
+}
+function save() {
+  if (dataset.mock) return;   // nothing in the sample data set is saved
+  // drop working copies that match the saved version; the open one stays because the sidebar inputs write into it
+  for (const [id, e] of Object.entries(state.edits)) { if (id === state.currentId) continue; const sv = savedById(id); if (!sv || JSON.stringify(sv) === JSON.stringify(e)) delete state.edits[id]; }
+  state.savedAt = Date.now();
+  // the data folder is the home for this; the browser only buffers it until the folder copy is written
+  dataset.buffer.through(LS_KEY, state, disk ? disk.save() : false);
+  parties.save();   // writes only if a company or consultant profile changed
+}
+const draftOf = id => state.drafts.find(d => d.id === id) || null;
+const savedById = id => state.contracts.find(i => i.id === id) || null;
+const savedOf = () => savedById(state.currentId);
+const working = () => { const d = draftOf(state.currentId); if (d) return d; const sv = savedOf(); if (!sv) return null; if (!state.edits[sv.id]) state.edits[sv.id] = clone(sv); return state.edits[sv.id]; };
+const isDirtyId = id => draftOf(id) ? true : !!(state.edits[id] && savedById(id) && JSON.stringify(state.edits[id]) !== JSON.stringify(savedById(id)));
+const isDirty = () => isDirtyId(state.currentId);
+
+/* ======================= wording to blocks ======================= */
+function parseWording(text) {
+  const paras = [];
+  for (const group of String(text || '').replace(/\r/g, '').split(/\n\s*\n/)) {
+    const p = { title: '', text: [], subs: [], tail: [] };
+    for (const raw of group.split('\n')) {
+      const t = raw.trim(); if (!t) continue;
+      if (t.startsWith('# ')) p.title = t.slice(2).trim();
+      else if (t.startsWith('- ')) p.subs.push(t.slice(2).trim());
+      else (p.subs.length ? p.tail : p.text).push(t);
+    }
+    if (p.title || p.text.length || p.subs.length || p.tail.length) paras.push({ title: p.title, text: p.text.join(' '), subs: p.subs, tail: p.tail.join(' ') });
+  }
+  return paras;
+}
+const CLAUSE_NO = (() => { const nums = {}; let n = 0; for (const s of TEMPLATE) if (!s.fixed) nums[s.id] = ++n; return nums; })();
+const ph = label => `<span class="ph">[${esc(label)}]</span>`;
+function inline(str, c) {
+  return smart(str).split(/(\{[A-Za-z]+(?::[\w-]+)?\})/).map(part => {
+    const m = part.match(/^\{([A-Za-z]+)(?::([\w-]+))?\}$/);
+    if (!m) return esc(part);
+    if (m[1] === 'clause') return `Clause ${CLAUSE_NO[m[2]]}`;
+    const t = TOKENS[m[1]]; if (!t) return esc(part);
+    const v = String(t[1](c) ?? '').trim();
+    return v ? esc(smart(v)) : ph(t[0]);
+  }).join('');
+}
+// Labels of the values the wording uses that are still blank.
+// What has to be filled before the agreement can be downloaded: every value the wording prints,
+// both signatories, and payment stages that add up to 100%.
+function blockers(c) {
+  const out = missing(c);
+  if (!String(c.consultant.signatory || '').trim()) out.push('Consultant signatory');
+  if (c.fee.model === 'fixed' && c.stages.length && stageSum(c) !== 100) out.push('Payment stages that add up to 100%');
+  return out;
+}
+function missing(c) {
+  const out = new Set();
+  for (const s of TEMPLATE) for (const m of sectionText(s, c).matchAll(/\{([A-Za-z]+)\}/g)) { const t = TOKENS[m[1]]; if (t && !t[2] && !String(t[1](c) ?? '').trim()) out.add(t[0]); }
+  return [...out];
+}
+function partyHtml(label, p) {
+  return `<div class="party"><div class="block-label">${label}</div><div class="block-data">
+    <p class="name">${p.name ? esc(p.name) : ph('Name')}</p><p>${esc(entityLine(p))}</p>${p.gstin ? `<p>GSTIN: ${esc(p.gstin)}</p>` : ''}
+    <p class="gap">${p.address ? esc(p.address) : ph('Address')}</p>${p.email ? `<p>Email: ${esc(p.email)}</p>` : ''}</div></div>`;
+}
+// The company signs by hand, so its name, designation and date print blank; the consultant's come from the profile.
+function signHtml(label, p, image, byHand = false) {
+  const rows = byHand ? [['Name', ''], ['Designation', ''], ['Date', '']] : [['Name', p.signatory], ['Designation', p.designation], ['Date', longDate(p.signDate)]];
+  return `<div class="sg"><div class="block-label">For the ${label}</div><div class="block-data">
+    <p>For and on behalf of ${p.name ? esc(p.name) : ph('Name')}</p>
+    <div class="sig-box">${image && ui.imgOf(p, 'seal', DEFAULT_SEAL) ? `<img src="${esc(ui.imgOf(p, 'seal', DEFAULT_SEAL))}" alt="">` : ''}</div>
+    <p class="sig-cap">Authorised signatory</p>
+    <div class="kv">${rows.map(([k, v]) => `<div class="kv-row"><span class="k">${k}</span><span class="v">${esc(v || '')}</span></div>`).join('')}</div></div></div>`;
+}
+// Flatten the agreement into blocks the paginator can place. kwn = keep with the next block.
+function buildBlocks(c) {
+  const B = [];
+  for (const s of TEMPLATE) {
+    const paras = parseWording(sectionText(s, c)), fixed = !!s.fixed, no = CLAUSE_NO[s.id];
+    const numbered = !fixed && paras.length > 1, nn = numbered ? '' : ' nn', gutter = numbered ? '<span class="no"></span>' : '';
+    if (!fixed) B.push({ cls: 'b-h', anchor: s.id, kwn: true, html: `<div class="block-label"><span>${no}</span><span>${esc(s.title)}</span></div>` });
+    paras.forEach((p, i) => {
+      const alone = !p.title && !p.subs.length && !p.tail;
+      if (alone && p.text === '{parties}') { B.push({ cls: 'b-parties', anchor: s.id, html: partyHtml('The Company', c.company) + partyHtml('The Consultant', c.consultant) }); return; }
+      if (alone && p.text === '{signatures}') { if (B.length) B[B.length - 1].kwn = true; B.push({ cls: 'b-sign', anchor: s.id, html: signHtml('Company', c.company, false, true) + signHtml('Consultant', c.consultant, true) }); return; }
+      const itemCls = fixed ? 'b-p' : 'b-i' + nn;
+      const body = (p.title ? `<p class="ti">${inline(p.title, c)}</p>` : '') + (p.text ? `<p>${inline(p.text, c)}</p>` : '');
+      const subs = p.subs.flatMap(x => x === '{stages}' ? (stageTexts(c).length ? stageTexts(c).map(t => esc(smart(t))) : [ph('Payment stages')]) : [inline(x, c)]);
+      if (body) B.push({ cls: itemCls, anchor: s.id, kwn: subs.length > 0, html: fixed ? body : (numbered ? `<span class="no">${no}.${i + 1}</span>` : '') + `<div>${body}</div>` });
+      subs.forEach((h, j) => B.push({ cls: 'b-sub' + (fixed ? ' plain' : nn), anchor: s.id, html: `<span class="lt">(${letter(j)})</span><div>${h}</div>` }));
+      if (p.tail) B.push({ cls: itemCls, anchor: s.id, html: fixed ? `<p>${inline(p.tail, c)}</p>` : gutter + `<div><p>${inline(p.tail, c)}</p></div>` });
+    });
+  }
+  return B;
+}
+function headerHtml(c) {
+  const row = (k, iso) => `<div class="kv-row"><span class="k">${k}</span><span class="v">${iso ? esc(longDate(iso)) : ph('Date')}</span></div>`;
+  return `<div class="pg-header"><div class="pg-brand"><div class="pg-logo"><img src="assets/logo.png" alt=""></div><div class="pg-title">${DOC_TITLE}</div></div>
+    <div class="pg-meta"><div class="kv">${row('Execution date', c.executionDate)}${row('Start date', c.startDate)}${row('End date', endDate(c))}</div></div></div>`;
+}
+
+/* ======================= pages ======================= */
+// Blocks are placed one by one; a block that overflows moves to a new page along with any kwn blocks right before it.
+// Screen and print use the same pages, so the preview is what prints.
+function renderPage() {
+  const c = working(); if (!c) return;
+  const holder = el('div', { class: 'pages' });
+  $('scale').replaceChildren(holder);
+  const pages = [];
+  const newPage = () => {
+    const pg = el('div', { class: 'page' });
+    if (!pages.length) pg.insertAdjacentHTML('beforeend', headerHtml(c));
+    const flow = el('div', { class: 'flow' });
+    pg.append(flow, el('div', { class: 'pg-foot' })); holder.append(pg); pages.push(pg);
+    return flow;
+  };
+  let flow = newPage();
+  for (const b of buildBlocks(c)) {
+    const node = el('div', { class: 'b ' + b.cls, 'data-anchor': b.anchor, 'data-kwn': b.kwn ? '1' : null, html: b.html });
+    flow.append(node);
+    if (flow.scrollHeight > flow.clientHeight + 1 && flow.children.length > 1) {
+      const carry = [node]; node.remove();
+      while (flow.children.length > 1 && flow.lastElementChild.dataset.kwn) carry.unshift(flow.lastElementChild), flow.lastElementChild.remove();
+      flow = newPage(); flow.append(...carry);
+    }
+  }
+  pages.forEach((pg, i) => { pg.lastElementChild.innerHTML = `<span>${DOC_TITLE}</span><span>Page ${i + 1} of ${pages.length}</span>`; });
+  fitPreview();
+}
+function fitPreview() {
+  const pv = $('preview'), box = $('scaleBox'), sc = $('scale'), holder = sc.firstElementChild; if (!holder) return;
+  const pw = 595 * 96 / 72, s = Math.min(14 / 12, (pv.clientWidth - 56) / pw); // 9pt body shows at 14px when there is room
+  sc.style.transform = `scale(${s})`; sc.style.width = pw + 'px';
+  box.style.width = pw * s + 'px'; box.style.height = holder.offsetHeight * s + 'px'; $('pvTools').style.width = pw * s + 'px';
+}
+window.addEventListener('resize', fitPreview);
+let renderQueued = false;
+// One render after the current event, however many fields it touched.
+function scheduleRender() { if (renderQueued) return; renderQueued = true; queueMicrotask(() => { renderQueued = false; renderPage(); }); }
+
+// Scroll the preview to where a field shows up: the parties or signature blocks, or the first clause using one of the tokens.
+function reveal(target) {
+  const c = working(), pv = $('preview'); if (!c) return;
+  if (target === 'top') { pv.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  const toks = [target].flat(); let node = null;
+  if (toks.includes('parties')) node = pv.querySelector('.b-parties');
+  if (!node && toks.includes('signatures')) node = pv.querySelector('.b-sign');
+  if (!node) { const sec = TEMPLATE.find(s => toks.some(t => sectionText(s, c).includes('{' + t + '}'))); if (sec) node = pv.querySelector(`[data-anchor="${sec.id}"]`); }
+  if (!node) return;
+  const r = node.getBoundingClientRect(), pr = pv.getBoundingClientRect();
+  if (r.top >= pr.top + 24 && r.top <= pr.bottom - 120) return;
+  pv.scrollTo({ top: pv.scrollTop + r.top - pr.top - 48, behavior: 'smooth' });
+}
+
+/* ======================= sidebar helpers ======================= */
+let detailsScroll = 0, refreshers = [];
+let saveTimer;
+function touch() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 150); scheduleRender(); refreshTopbar(); buildList(); refreshers.forEach(f => f()); }
+const sh = (title, ...actions) => el('div', { class: 'sh' }, el('span', { class: 't' }, title), el('span', { class: 'spacer' }), ...actions);
+const group = (label, node) => el('div', { class: 'field' }, el('span', { class: 'fl' }, label), node);
+const grow = t => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+// quiet: writes into obj without touching the agreement (used by the party form, which saves on its own button)
+function bind(obj, key, o = {}) {
+  const i = el(o.multi ? 'textarea' : 'input', { class: 'in', type: o.multi ? null : (o.type || 'text'), rows: o.multi ? (o.rows || 2) : null, placeholder: o.ph || null, step: o.type === 'number' ? 'any' : null, spellcheck: o.multi ? null : 'false' });
+  i.value = obj[key] ?? '';
+  i.addEventListener('input', () => { if (o.map) i.value = o.map(i.value); obj[key] = i.value; o.onInput?.(i.value); if (o.multi) grow(i); if (!o.quiet) touch(); });
+  if (o.reveal) i.addEventListener('focus', () => reveal(o.reveal));
+  if (o.multi) { i.classList.add('grow'); requestAnimationFrame(() => grow(i)); }
+  return i;
+}
+function select(obj, key, options, o = {}) {
+  const s = el('select', { class: 'in' }, options.map(([v, l]) => el('option', { value: v, selected: String(obj[key]) === String(v) ? 'selected' : null }, l)));
+  s.addEventListener('change', () => { obj[key] = s.value; o.onChange?.(s.value); if (!o.quiet) touch(); });
+  if (o.reveal) s.addEventListener('focus', () => reveal(o.reveal));
+  return el('span', { class: 'sel' }, s, icon('caret-down-bold', 'xs'));
+}
+// rebuild: the choice changes which fields show, so the sidebar is rebuilt after it
+function tabs(options, get, set, o = {}) {
+  const wrap = el('span', { class: 'tabs' });
+  const paint = () => [...wrap.children].forEach((b, i) => b.classList.toggle('on', get() === options[i][0]));
+  options.forEach(([v, l]) => wrap.append(el('button', { type: 'button', onclick: () => { set(v); paint(); touch(); if (o.rebuild) buildSide(); if (o.reveal) reveal(o.reveal); } }, l)));
+  paint(); return wrap;
+}
+function dateField(obj, key, o = {}) {
+  const b = el('button', { type: 'button', class: 'in date' });
+  const paint = () => b.replaceChildren(obj[key] ? fmtDate(obj[key]) : el('span', { class: 'dim' }, o.empty || 'Not set'));
+  b.onclick = () => {
+    if (o.reveal) reveal(o.reveal);
+    const before = o.presets ? [el('div', { class: 'tabs' }, o.presets.map(([label, val]) => el('button', { type: 'button', onclick: () => { obj[key] = val(); paint(); touch(); ui.closePop(); } }, label))), el('div', { class: 'pop-sep' })] : [];
+    ui.datePicker({ anchor: b, container: $('side'), value: obj[key], before, onPick: iso => { obj[key] = iso; paint(); touch(); } });
+  };
+  paint(); return b;
+}
+
+/* ======================= sidebar ======================= */
+function buildSide() {
+  const side = $('side'); ui.closePop(); refreshers = [];
+  const c = working(); side.replaceChildren(); if (!c) return;
+  const S = ['signatures'];
+
+  side.append(el('div', { class: 'sh first' }, el('button', { class: 'btn', type: 'button', onclick: () => setEditing(false) }, icon('caret-left', 'xs'), 'Back to all agreements')));
+  // the agreement's name, as the list shows it
+  side.append(el('div', { class: 'ed-name' }, c.company.name || '(no company)'));
+
+
+  side.append(sh('Agreement'),
+    el('div', { class: 'g2' },
+      group('Execution date', dateField(c, 'executionDate', { reveal: 'top', presets: [['Today', today]] })),
+      group('Consultant signs on', dateField(c.consultant, 'signDate', { reveal: S, empty: 'Blank', presets: [['Execution date', () => c.executionDate], ['Today', today], ['Leave blank', () => '']] }))));
+
+  side.append(sh('Company', el('button', { class: 'btn sm', type: 'button', onclick: () => openPicker('company') }, 'Change')), partyCard(c, 'company'));
+  side.append(sh('Consultant', el('button', { class: 'btn sm', type: 'button', onclick: () => openPicker('consultant') }, 'Change')), partyCard(c, 'consultant'));
+
+  const endHint = el('span', { class: 'dim' });
+  refreshers.push(() => { const e = endDate(c); endHint.textContent = e ? `Ends ${fmtDate(e)}` : ''; });
+  side.append(sh('Term'),
+    el('div', { class: 'g2' },
+      group('Start date', dateField(c, 'startDate', { reveal: ['tenure'], presets: [['Execution date', () => c.executionDate], ['Today', today]] })),
+      field('Tenure', bind(c.tenure, 'n', { type: 'number', reveal: ['tenure'] }))),
+    el('div', { class: 'term-foot' }, tabs([['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months']], () => c.tenure.unit, v => { c.tenure.unit = v; }, { reveal: ['tenure'] }), endHint));
+
+  side.append(sh('Scope'), field('What the Consultant will do', bind(c, 'scope', { multi: true, rows: 3, reveal: ['scope'] })));
+
+  side.append(...feeFields(c));
+
+  refreshers.forEach(f => f());
+  side.scrollTop = detailsScroll;
+}
+function feeFields(c) {
+  const f = c.fee, R = { reveal: ['fee', 'rate', 'stages'] };
+  const head = sh('Fees', tabs(Object.entries(MODELS), () => f.model, v => { f.model = v; }, { ...R, rebuild: true }));
+  const money_ = label => el('div', { class: 'g-money' }, field(label, bind(f, f.model === 'fixed' ? 'amount' : 'rate', { type: 'number', ...R })),
+    field('Currency', bind(f, 'currency', { ...R, map: v => v.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) })));
+  const gst = group('GST', select(f, 'gst', Object.entries(GST).map(([k, v]) => [k, v[0]]), R));
+
+  if (f.model === 'fixed') {
+    const stageBox = el('div'), sumHint = el('p', { class: 'hint', style: 'margin:0 0 10px' });
+    const drawStages = () => stageBox.replaceChildren(...c.stages.map((s, i) => el('div', { class: 'stage' },
+      el('span', { class: 'pct' }, bind(s, 'pct', { type: 'number', reveal: ['stages'] }), el('span', { class: 'dim' }, '%')),
+      bind(s, 'when', { multi: true, rows: 1, reveal: ['stages'], ph: 'When it is paid' }),
+      el('span', { class: 'row-tools' }, el('button', { class: 'btn sm secondary', type: 'button', title: 'Remove stage', onclick: () => { c.stages.splice(i, 1); drawStages(); touch(); } }, icon('x'))))));
+    drawStages();
+    refreshers.push(() => { const t = stageSum(c); sumHint.hidden = t === 100 || !c.stages.length; sumHint.textContent = `Stages add up to ${t}%, not 100%.`; });
+    return [head, money_('Total fee'),
+      el('div', { class: 'g2' }, field('Hours of work', bind(f, 'hours', { type: 'number', ...R })), gst),
+      group('Payment stages', stageBox),
+      el('button', { class: 'btn secondary', type: 'button', style: 'margin:-6px 0 6px', onclick: () => { c.stages.push({ pct: Math.max(0, 100 - stageSum(c)), when: '' }); drawStages(); touch(); } }, 'Add stage'),
+      sumHint];
+  }
+
+  // hourly and weekly: how much work (a select beside the number), the running total, then GST and billing cycle
+  const hourly = f.model === 'hourly', limitKey = hourly ? 'hoursLimit' : 'weeksLimit', limit = f[limitKey];
+  const limitSel = select(f, limitKey, Object.entries(hourly ? LIMITS : WEEK_LIMITS), { ...R, onChange: buildSide });
+  const numIn = (key, ph) => bind(f, key, { type: 'number', ...R, ph });
+  const tw = tenureWeeks(c);
+  const amountRow = limit === 'ongoing' ? el('div', { class: 'g-limit solo' }, limitSel)
+    : limit === 'range' ? el('div', { class: 'g-limit range' }, limitSel, numIn('hours', 'From'), numIn('hoursMax', 'To'))
+    : el('div', { class: 'g-limit' }, limitSel, hourly ? numIn('hours', 'Hours') : numIn('weeks', tw ? `${tw}, as the tenure` : 'Weeks'));
+  const totalLine = el('p', { class: 'hint total-line' });
+  refreshers.push(() => {
+    const { total, totalMax } = totals(c), m = v => money(v, f.currency); let s = '';
+    if (limit === 'ongoing') s = hourly ? 'Billed for the hours worked' : 'Billed for each week worked';
+    else if (!hourly) s = total ? `Total ${m(total)} for ${plural(weeksOf(c), 'week')}` : '';
+    else if (limit === 'range') s = total && totalMax ? `Total between ${m(total)} and ${m(totalMax)}` : '';
+    else if (total) s = `${{ fixed: 'Total', max: 'At most', min: 'At least' }[limit]} ${m(total)}`;
+    totalLine.textContent = s; totalLine.hidden = !s;
+  });
+  return [head, money_(hourly ? 'Rate per hour' : 'Rate per week'),
+    group(hourly ? 'Hours' : 'Weeks', amountRow), totalLine,
+    el('div', { class: 'g2' }, gst, group('Invoiced', select(f, 'cycle', Object.entries(CYCLES).map(([k, v]) => [k, v[0]]), R)))];
+}
+function partyCard(c, role) {
+  const p = c[role];
+  const lines = p.name
+    ? [el('div', {}, p.name), el('div', { class: 'sub' }, [entityLine(p), p.gstin].filter(Boolean).join(', ')),
+       role === 'consultant' ? el('div', { class: 'sub' }, p.signatory ? `Signed by ${p.signatory}${p.designation ? ', ' + p.designation : ''}` : 'No signatory') : null]
+    : [el('div', { class: 'placeholder' }, role === 'company' ? 'Choose a company' : 'Choose a consultant profile')];
+  return el('div', { class: 'card', onclick: () => openPicker(role) }, lines);
+}
+
+/* ======================= party dialog ======================= */
+// A list of saved parties (pick one, Edit, Delete, Add new) and a form. Saving a party applies it to this agreement
+// when it is new or already in use here; other agreements keep their own copy.
+function openPicker(role) {
+  const c = working(), D = ui.dialog, noun = role === 'company' ? 'company' : 'consultant profile';
+  const apply = p => { c[role] = { ...snapshot(p), signDate: c[role].signDate || '' }; };
+  const done = msg => { save(); D.close(); touch(); buildSide(); reveal(['parties']); if (msg) toast(msg); };
+  const showList = () => {
+    const rows = state.parties[role].map(p => el('div', { class: 'pick' + (p.id === c[role].profileId ? ' on' : ''), onclick: () => { apply(p); done(); } },
+      el('div', {}, el('div', { class: 'pn' }, p.label || pname(p) || '(unnamed)'), el('div', { class: 'ps' }, [p.label ? pname(p) : entityLine({ ...p, entity: p.entity || guessEntity(p, pname(p)) }), p.gstin].filter(Boolean).join(', '))),
+      el('button', { class: 'btn sm secondary', type: 'button', onclick: e => { e.stopPropagation(); showForm(p); } }, 'Edit'),
+      el('button', { class: 'btn sm secondary', type: 'button', title: 'Delete the saved ' + noun + ' (agreements that used it keep their copy)', onclick: e => { e.stopPropagation();
+        ui.confirmClick(e.currentTarget, { resetOn: e.currentTarget.closest('.pick'), onConfirm: () => { state.parties[role] = state.parties[role].filter(x => x.id !== p.id); save(); showList(); toast('Deleted'); } }); } }, 'Delete')));
+    D.open({ title: 'Choose ' + (role === 'company' ? 'the company' : 'your profile'), footLeft: true,
+      body: rows.length ? rows : el('div', { class: 'empty' }, 'Nothing saved yet.'),
+      foot: el('button', { class: 'btn', type: 'button', onclick: () => showForm(null) }, 'Add new') });
+  };
+  const showForm = existing => {
+    const isNew = !existing, p = isNew ? blankProfile(role) : clone(existing); if (!p.entity) p.entity = guessEntity(p, pname(p));
+    let typeTouched = !isNew;
+    const country = field('Country of incorporation', bind(p, 'country', { quiet: true }));
+    const type = select(p, 'entity', Object.entries(ENTITIES).map(([k, e]) => [k, e.label]), { quiet: true, onChange: v => { typeTouched = true; country.hidden = v !== 'foreign'; } });
+    country.hidden = p.entity !== 'foreign';
+    const guess = () => { if (typeTouched) return; p.entity = guessEntity(p, pname(p)); type.firstChild.value = p.entity; country.hidden = p.entity !== 'foreign'; };
+    D.open({ title: (isNew ? 'New ' : 'Edit ') + noun, footLeft: false,
+      body: [
+        role === 'consultant' ? field('Profile name', bind(p, 'label', { quiet: true, ph: 'e.g. Bengaluru office' })) : null,
+        field('Name', bind(p, nameKey(role), { quiet: true, onInput: guess })),
+        group('Type', type), country,
+        el('div', { class: 'g2' }, field('GSTIN', bind(p, 'gstin', { quiet: true, map: v => v.toUpperCase().replace(/\s/g, ''), onInput: guess })), field('Email', bind(p, 'email', { quiet: true }))),
+        field('Address', bind(p, 'address', { quiet: true, multi: true, rows: 3 })),
+        role === 'consultant' ? el('div', { class: 'g2' }, field('Signatory', bind(p, 'signatory', { quiet: true })), field('Designation', bind(p, 'designation', { quiet: true }))) : null,
+        role === 'consultant' ? ui.imagePicker(p, 'seal', 'Signature and seal', DEFAULT_SEAL) : null,
+      ],
+      foot: [
+        el('button', { class: 'btn', type: 'button', onclick: showList }, 'Back'),
+        el('button', { class: 'btn', type: 'button', onclick: () => {
+          if (!pname(p).trim()) return toast('Name is required');
+          const list = state.parties[role];
+          if (isNew) list.push(p); else list[list.findIndex(x => x.id === p.id)] = p;
+          if (isNew || c[role].profileId === p.id) apply(p);
+          done(isNew ? 'Added and applied' : 'Updated');
+        } }, isNew ? 'Add and use' : 'Save')] });
+  };
+  showList();
+}
+
+/* ======================= lifecycle ======================= */
+const byNewest = (a, b) => (b.executionDate || '').localeCompare(a.executionDate || '') || (b.updatedAt || 0) - (a.updatedAt || 0);
+function swapPage(change) { ui.swapFade($('scaleBox'), change); }
+// Agreements open read-only; Edit swaps the list for the editor. New and duplicated drafts open straight in the editor.
+let editing = false;
+function setEditing(on) {
+  editing = on; ui.closePop();
+  $('app').classList.toggle('editing', on); $('clist').hidden = on; $('side').hidden = !on;
+  if (on) { detailsScroll = 0; buildSide(); } else buildList();
+  refreshTopbar(); fitPreview();
+}
+function show(id, edit = false) { swapPage(() => { state.currentId = id; save(); renderAll(); setEditing(edit); }); }
+// A new agreement copies the latest saved one (consultant, term, fee type, stages) with the client-specific parts cleared.
+function newContract() {
+  const latest = [...state.contracts].sort(byNewest)[0];
+  const c = latest ? clone(latest) : blankContract();
+  Object.assign(c, { id: uid(), executionDate: today(), startDate: today(), scope: '', company: emptyParty(), createdAt: Date.now(), updatedAt: Date.now() });
+  c.fee = { ...c.fee, amount: '', hours: '', hoursMax: '', rate: '', weeks: '' }; c.consultant.signDate = today();
+  state.drafts.unshift(c); justAdded = c.id; show(c.id, true); toast('New agreement started (draft)');
+}
+function duplicateContract() {
+  const src = working(); if (!src) return;
+  const c = clone(src); Object.assign(c, { id: uid(), executionDate: today(), createdAt: Date.now(), updatedAt: Date.now() });
+  state.drafts.unshift(c); justAdded = c.id; show(c.id, true); toast('Duplicated (draft)');
+}
+function editContract(id) { if (id === state.currentId) setEditing(true); else if (draftOf(id) || savedById(id)) show(id, true); }
+function openContract(id) { if (id !== state.currentId && (draftOf(id) || savedById(id))) show(id); }
+function saveWorking() {
+  const c = working(); if (!c) return false;
+  c.updatedAt = Date.now();
+  // the agreement's company becomes an invoice client if it isn't one yet
+  if (c.company.name && !state.parties.company.some(p => p.id === c.company.profileId)) {
+    const { signDate, profileId, ...fields } = c.company, id = uid();
+    state.parties.company.push({ id, ...fields, state: '', currency: 'INR' }); c.company.profileId = id;
+  }
+  const idx = state.contracts.findIndex(x => x.id === c.id);
+  if (idx >= 0) { state.contracts[idx] = clone(c); delete state.edits[c.id]; }
+  else { state.contracts.unshift(clone(c)); state.drafts = state.drafts.filter(d => d.id !== c.id); }
+  save(); renderAll(); toast(`Saved ${c.company.name || 'agreement'}`); return true;
+}
+function ensureWorking() {
+  if (working()) return;
+  const latest = [...state.contracts].sort(byNewest)[0];
+  if (state.drafts[0]) state.currentId = state.drafts[0].id;
+  else if (latest) state.currentId = latest.id;
+  else { const c = blankContract(); state.drafts.push(c); state.currentId = c.id; }
+  if (state.savedAt) save(); // never stamp a seeded, unsaved state, or it would outrank the data file
+}
+function removeRow(id, change) {
+  const showing = id === state.currentId;
+  ui.rowOut(document.querySelector(`#clist .row[data-id="${id}"]`), () => {
+    const go = () => { change(); if (showing) state.currentId = null; ensureWorking(); renderAll(); };
+    showing ? swapPage(go) : go();
+  });
+}
+const discardDraft = id => { removeRow(id, () => { state.drafts = state.drafts.filter(d => d.id !== id); }); toast('Draft discarded'); };
+const deleteContract = id => removeRow(id, () => { state.contracts = state.contracts.filter(i => i.id !== id); delete state.edits[id]; toast('Deleted'); });
+
+/* ======================= list ======================= */
+let justAdded = null;
+function feeSummary(c) {
+  const f = c.fee || {};
+  if (f.model === 'hourly') return num(f.rate) ? `${money(num(f.rate), f.currency)} per hour` : 'No rate set';
+  if (f.model === 'weekly') return num(f.rate) ? `${money(num(f.rate), f.currency)} per week` : 'No rate set';
+  return num(f.amount) ? money(num(f.amount), f.currency) : 'No fee set';
+}
+let draftsShown = false;   // whether the last list render had drafts, to animate the empty state in
+function buildList() {
+  const v = $('clist'), scroll = v.scrollTop; v.innerHTML = '';
+  const row = (item, isDraft) => {
+    const shown = isDraft ? item : (state.edits[item.id] || item);
+    return el('div', { class: 'row' + (item.id === state.currentId ? ' on' : '') + (item.id === justAdded ? ' enter' : ''), 'data-id': item.id, onclick: () => openContract(item.id) },
+      el('div', { class: 'n' }, shown.company?.name || '(no company)', !isDraft && isDirtyId(item.id) ? el('span', { class: 'dot', title: 'Unsaved changes' }) : null),
+      el('div', { class: 'sub' }, feeSummary(shown)),
+      el('div', { class: 'sub' }, fmtDate(shown.executionDate) || 'No date'),
+      el('span', { class: 'actions row-acts' },
+        el('button', { class: 'btn sm secondary', type: 'button', onclick: e => { e.stopPropagation(); editContract(item.id); } }, 'Edit'),
+        el('button', { class: 'btn sm secondary', type: 'button', onclick: e => { e.stopPropagation();
+          ui.confirmClick(e.currentTarget, { resetOn: e.currentTarget.closest('.row'), onConfirm: () => isDraft ? discardDraft(item.id) : deleteContract(item.id) }); } }, 'Delete')));
+  };
+  v.append(el('div', { class: 'list-top' }, el('button', { class: 'btn sm', type: 'button', title: 'Start from the latest agreement with the company details cleared', onclick: newContract }, 'New agreement')),
+    el('div', { class: 'list-h' }, 'Drafts'));
+  if (disk) disk.bar(v);
+  // when the last draft goes, "No drafts yet" grows in with the same motion as a new row
+  const emptyNow = !state.drafts.length, emptyEl = emptyNow ? el('div', { class: 'list-empty' }, 'No drafts yet') : null;
+  if (emptyEl) v.append(emptyEl);
+  state.drafts.forEach(d => v.append(row(d, true)));
+  let year = null;
+  for (const item of [...state.contracts].sort(byNewest)) {
+    const y = (item.executionDate || '').slice(0, 4) || 'Undated';
+    if (y !== year) { year = y; v.append(el('div', { class: 'list-h' }, y)); }
+    v.append(row(item, false));
+  }
+  v.scrollTop = scroll; justAdded = null;
+  const fresh = v.querySelector('.row.enter'); if (fresh) ui.rowIn(fresh);
+  if (emptyEl && draftsShown) ui.rowIn(emptyEl);
+  draftsShown = !emptyNow;
+}
+
+/* ======================= toolbar ======================= */
+function refreshTopbar() {
+  const c = working(), dirty = isDirty();
+  const need = c ? blockers(c) : [];
+  $('btnSave').disabled = !c || !dirty;
+  $('btnPdf').disabled = !c || need.length > 0;
+  // the primary action is whichever one can run: Save agreement while there are changes, otherwise Download
+  $('btnPdf').className = 'btn' + ($('btnSave').disabled ? '' : ' secondary');
+  $('pdfTip').dataset.tip = need.length ? `To download, fill in: ${need.join(', ')}` : '';
+  document.body.classList.toggle('print-blocked', need.length > 0);
+  $('btnDel').hidden = !(c && savedOf() && dirty);
+  $('btnEdit').hidden = editing || !c;
+}
+function renderAll() { ensureWorking(); buildList(); buildSide(); renderPage(); refreshTopbar(); }
+$('btnEdit').onclick = () => setEditing(true);
+$('btnSave').onclick = saveWorking;
+$('btnDup').onclick = duplicateContract;
+$('btnDel').onclick = () => { delete state.edits[state.currentId]; save(); renderAll(); toast('Changes discarded'); };
+$('btnPdf').onclick = () => { if (!working() || blockers(working()).length) return; if (isDirty() && !saveWorking()) return; setTimeout(() => window.print(), 50); };
+window.addEventListener('beforeprint', () => { const c = working(); if (c) document.title = `${DOC_TITLE} - ${c.consultant.name} and ${c.company.name}`; });
+window.addEventListener('afterprint', () => { document.title = 'Contracts'; });
+$('side').addEventListener('scroll', () => { detailsScroll = $('side').scrollTop; });
+
+load();
+renderAll();
+setEditing(false);
+document.fonts.ready.then(renderPage); // page breaks depend on the font's metrics
+// mirror the state to <folder>/contracts.json once a data folder is connected; the file wins if it is newer
+dataset.banner('agreements');
+if (dataset.own) {
+  const partiesDisk = parties.attach(() => { if (state) renderAll(); });
+  disk = store.attach({ key: 'contracts', get: () => state, set: d => { state = d; migrate(state); }, adopt: () => { partiesDisk?.sync(); renderAll(); } });
+  partiesDisk?.sync();
+}
+// once the folder is connected, anything still in the browser buffer is written out and the buffer is dropped
+disk?.sync()?.then(st => { buildList(); if (st === 'connected' && dataset.buffer.read(LS_KEY)) save(); });
+</script>
+</body>
+</html>

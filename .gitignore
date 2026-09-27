@@ -1,0 +1,6 @@
+# Your own data never goes to git: invoices, agreements, clients, issuers and any logo or signature you upload.
+data/*.json
+data/*.js
+!data/README.md
+
+.DS_Store
