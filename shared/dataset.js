@@ -21,9 +21,11 @@
 
   const KEY = key('scs-dataset');
   const q = new URLSearchParams(location.search);
-  // the public demo: sample data only, with a link to the repository in place of the switch
+  // The public demo: sample data only, with a link to the repository in place of the switch. Only the addresses the
+  // author publishes are demos, so a copy someone else clones, hosts or opens locally is the real product.
   const REPO = 'https://github.com/saura3h/simple-invoices';
-  const demo = q.has('demo') || /(^|\.)saurabh\.so$/.test(location.hostname);
+  const DEMO_HOSTS = [/(^|\.)saurabh\.so$/, /(^|-)simple-invoices[^.]*\.vercel\.app$/];
+  const demo = q.has('demo') || DEMO_HOSTS.some(re => re.test(location.hostname));
   const forced = demo ? 'mock' : q.has('mock') ? 'mock' : q.has('own') ? 'own' : null;
   let chosen = null;
   try { chosen = localStorage.getItem(KEY); } catch (e) {}

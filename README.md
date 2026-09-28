@@ -2,6 +2,9 @@
 
 Invoices and service agreements you run on your own machine. Live demo: https://saurabh.so/simple-invoices
 
+The demo is sample data only and saves nothing. Your own copy, opened from your disk or hosted anywhere else, is the
+full product: the banner there switches you to your own data.
+
 No server, no build step, no account: two HTML files you open in Chrome. Nothing leaves your machine.
 
 It opens on sample data, where every studio, client, bank account and address is made up and nothing you change is saved. The banner at the top switches you to your own data for good; that starts empty and is written to `data/`, which git ignores. To see the sample data again afterwards, add `?mock` to the address.
