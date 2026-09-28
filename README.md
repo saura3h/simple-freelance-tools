@@ -1,6 +1,6 @@
-# Simple Invoices
+# Simple freelance tools
 
-Invoices and service agreements you run on your own machine. Live demo: https://saurabh.so/simple-invoices
+Invoices and service agreements you run on your own machine. Live demo: https://saurabh.so/simple-freelance-tools
 
 The demo is sample data only and saves nothing. Your own copy, opened from your disk or hosted anywhere else, is the
 full product: the banner there switches you to your own data.
