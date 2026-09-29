@@ -25,5 +25,9 @@
     <a class="btn" href="invoices.html">Make an invoice</a>
   </div>
 </main>
+<script>
+  // Opened from a web address, the pages are served without .html; from a file they need it.
+  if (location.protocol !== 'file:') for (const a of document.querySelectorAll('a[href$=".html"]')) a.href = a.getAttribute('href').replace(/\.html$/, '');
+</script>
 </body>
 </html>
