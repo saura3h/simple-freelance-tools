@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contracts</title>
+<title>Agreements</title>
 <link rel="icon" href="design/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="design/tokens.css">
 <link rel="stylesheet" href="design/base.css">
@@ -152,11 +152,11 @@ input[type=number] { -moz-appearance: textfield; }
 <script src="design/ui.js"></script>
 <script src="shared/dataset.js"></script>
 <script src="design/store.js"></script>
-<script>dataset.loadFiles('contracts', 'parties');</script>
+<script>dataset.loadFiles('agreements', 'parties');</script>
 <script src="shared/parties.js"></script>
 <script>
 /* ======================= basics ======================= */
-const LS_KEY = dataset.key('scs-contracts-own');   // only the user's own data is saved; the sample set lives in the seeds (shared/dataset.js)
+const LS_KEY = dataset.key('scs-agreements-own');   // only the user's own data is saved; the sample set lives in the seeds (shared/dataset.js)
 let disk = null; // folder store, attached after first render
 const DOC_TITLE = 'Service Agreement';
 const { esc, field, today, addDays, fmtDate } = ui;
@@ -492,8 +492,8 @@ try { if (!localStorage.getItem('scs-cleanup-2')) { ['scs-invoices-v1', 'scs-inv
 function load() {
   // the sample data set: seeds every time, never read from or written to storage
   if (dataset.mock) { const seeds = seedContracts(); state = { contracts: seeds, drafts: [], edits: {}, currentId: seeds[0].id }; sharedParties(state); return; }
-  // the data folder's own file (data/contracts.js) is the source; the browser buffer wins only if it is newer
-  const file = window.__scs?.contracts || null, buf = dataset.buffer.read(LS_KEY);
+  // the data folder's own file (data/agreements.js) is the source; the browser buffer wins only if it is newer
+  const file = window.__scs?.agreements || null, buf = dataset.buffer.read(LS_KEY);
   const src = buf && (!file || (buf.savedAt || 0) > (file.savedAt || 0)) ? buf : file;
   if (src) { state = clone(src); migrate(state); return; }
   state = { contracts: [], drafts: [], edits: {}, currentId: null }; sharedParties(state);   // your own set starts empty
@@ -952,18 +952,18 @@ $('btnDup').onclick = duplicateContract;
 $('btnDel').onclick = () => { delete state.edits[state.currentId]; save(); renderAll(); toast('Changes discarded'); };
 $('btnPdf').onclick = () => { if (!working() || blockers(working()).length) return; if (isDirty() && !saveWorking()) return; setTimeout(() => window.print(), 50); };
 window.addEventListener('beforeprint', () => { const c = working(); if (c) document.title = `${DOC_TITLE} - ${c.consultant.name} and ${c.company.name}`; });
-window.addEventListener('afterprint', () => { document.title = 'Contracts'; });
+window.addEventListener('afterprint', () => { document.title = 'Agreements'; });
 $('side').addEventListener('scroll', () => { detailsScroll = $('side').scrollTop; });
 
 load();
 renderAll();
 setEditing(false);
 document.fonts.ready.then(renderPage); // page breaks depend on the font's metrics
-// mirror the state to <folder>/contracts.json once a data folder is connected; the file wins if it is newer
+// mirror the state to <folder>/agreements.json once a data folder is connected; the file wins if it is newer
 dataset.banner('agreements');
 if (dataset.own) {
   const partiesDisk = parties.attach(() => { if (state) renderAll(); });
-  disk = store.attach({ key: 'contracts', get: () => state, set: d => { state = d; migrate(state); }, adopt: () => { partiesDisk?.sync(); renderAll(); } });
+  disk = store.attach({ key: 'agreements', get: () => state, set: d => { state = d; migrate(state); }, adopt: () => { partiesDisk?.sync(); renderAll(); } });
   partiesDisk?.sync();
 }
 // once the folder is connected, anything still in the browser buffer is written out and the buffer is dropped

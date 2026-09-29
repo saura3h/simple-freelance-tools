@@ -23,7 +23,7 @@ It opens on sample data, where every studio, client, bank account and address is
 
 ## Where the data lives
 
-Your data lives in `data/` in this folder: `data/invoices.json`, `data/contracts.json` and `data/parties.json` (the
+Your data lives in `data/` in this folder: `data/invoices.json`, `data/agreements.json` and `data/parties.json` (the
 clients and issuer profiles both tools share, readable), plus a matching `.js` file for each, which the pages load with
 a plain script tag so the data comes back with no permission and no click, even after Chrome's site data is cleared.
 Git ignores all of them.
@@ -43,7 +43,7 @@ data folder once, and reads `data/` meanwhile.
 
 ## Contracts
 
-`contracts.html` makes service agreements with the same list, save and download behaviour as invoices.
+`agreements.html` makes service agreements with the same list, save and download behaviour as invoices.
 
 1. The left column lists agreements: drafts on top, then saved ones by year of the execution date. Hovering a row shows Edit, which opens that agreement in the editor, and Delete, which asks for a second click. `New agreement` copies the latest saved one and clears the company, scope and fee amounts.
 2. An agreement always opens read-only, with the list on the left. `Edit` above the page swaps the list for the editor, and `Back to all agreements` at the top of the editor brings the list back. New and duplicated drafts open straight in the editor. Every clause always prints. The editor holds the execution date, your signing date, the company and consultant, term, scope and fees. The company's signing date prints blank, to be filled in by hand. Focusing a field scrolls the page to where that value prints.
@@ -54,12 +54,12 @@ data folder once, and reads `data/` meanwhile.
 7. Anything blank prints as `[Label]` in blue.
 8. Download stays disabled until every value the agreement prints is filled in, the consultant signatory is named, and fixed-fee stages add up to 100%. Hovering the disabled Download button lists what is missing, and printing with Cmd+P shows a note instead of the agreement. Once everything is filled in, Download saves first, then opens the print dialog. The PDF is named like "Service Agreement - Northwind Design Studio and Riya Kapoor". The preview matches the printed pages.
 
-Agreements and parties are stored in localStorage under `scs-contracts-demo`. The agreement wording is the `TEMPLATE` list in the script; the consultant signature and seal is `assets/stamp.svg`.
+Agreements and parties are stored in localStorage under `scs-agreements-own`. The agreement wording is the `TEMPLATE` list in the script; the consultant signature and seal is `assets/stamp.svg`.
 
 ## Files
 
 - `invoices.html`: the invoice app
-- `contracts.html`: the contracts app, with the agreement template at the top of its script
+- `agreements.html`: the contracts app, with the agreement template at the top of its script
 - `assets/logo.png`, `assets/signature.svg`: the default logo and a placeholder signature for invoices. Each issuer profile can upload its own logo and signature (Edit issuer profile), stored in the profile; Reset goes back to these files and Remove prints nothing. The name under the signature is the profile's "Signed by"
 - `assets/stamp.svg`: the default signature and seal printed on agreements; each consultant profile can upload its own (Edit consultant profile), and an agreement keeps the copy it was made with
 - `shared/parties.js`: the client and issuer lists shared by both apps, with the mock seeds

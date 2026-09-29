@@ -14,7 +14,7 @@
 :root { --rule: #ebebeb; --rule-dark: #ebebeb; --tint: #dae4fb; --paper: #fafafa; --ls-body: 0.2pt; --ls-label: 0.3pt; }
 
 /* ---------- app layout ---------- */
-.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100vh; }   /* same list width as contracts.html */
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100vh; }   /* same list width as agreements.html */
 .invlist { overflow: auto; background: #fff; padding: 16px; }
 .main { position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .preview { position: relative; flex: 1; overflow: auto; padding: 16px 28px 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: #fff; }
@@ -270,7 +270,7 @@ let state;
 // Your own data now lives under the -own keys (see shared/dataset.js); the sample data is never saved at all.
 try { if (!localStorage.getItem('scs-cleanup-2')) { ['scs-invoices-v1', 'scs-invoices-v2', 'scs-contracts-v1', 'scs-invoices-demo', 'scs-contracts-demo', 'scs-parties', 'scs-open-sections'].forEach(k => localStorage.removeItem(k)); localStorage.setItem('scs-cleanup-2', '1'); } } catch (e) {}
 function load() { loadOwn(); sharedParties(state); }
-// Clients and issuers are shared with contracts.html (shared/parties.js); older saves kept them here and are merged in.
+// Clients and issuers are shared with agreements.html (shared/parties.js); older saves kept them here and are merged in.
 function sharedParties(s) {
   parties.bind(s);
   for (const c of s.clients) { if (!c.currency) c.currency = 'INR'; if (!c.state && c.gstin) c.state = stateFromGstin(c.gstin); if (!c.country) c.country = 'India'; }

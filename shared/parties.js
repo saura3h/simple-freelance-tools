@@ -1,4 +1,4 @@
-/* parties.js: the clients and issuer profiles shared by invoices.html and contracts.html.
+/* parties.js: the clients and issuer profiles shared by invoices.html and agreements.html.
    One list, saved once (localStorage 'scs-parties' and data/parties.json via store.js), read by both apps.
    Clients are the invoice's "Bill to" and the agreement's Company; issuers are the invoice's "Service from" and the
    agreement's Consultant. Each record carries the union of both apps' fields; each app ignores what it doesn't use.
