@@ -82,7 +82,7 @@ Nothing else slides, and nothing scales or bounces.
 
 ## Layout
 
-Two columns: a 300px list on the left (the same in every product), content on the right. White throughout, no line between them. No visible scrollbars anywhere; areas still scroll. The content column's toolbar (mode tabs left, actions right) is the same width as the document and scrolls with it.
+Two columns: a 300px list on the left, content on the right. A product whose sidebar holds an editor can be wider; agreements uses 324px. White throughout, no line between them. No visible scrollbars anywhere; areas still scroll. The content column's toolbar (mode tabs left, actions right) is the same width as the document and scrolls with it.
 
 A product whose document is read-only opens it in a view mode. An Edit button sits where the mode tabs would be, and editing swaps the list for the editor in the same column, which is 300px wide in both modes, with "Back to all agreements" at its top. Section titles in the editor are dimmed text with their action on the right, like list headers. The document scales down to fit, up to the 14px screen size.
 
