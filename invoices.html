@@ -14,7 +14,7 @@
 :root { --rule: #ebebeb; --rule-dark: #ebebeb; --tint: #dae4fb; --paper: #fafafa; --ls-body: 0.2pt; --ls-label: 0.3pt; }
 
 /* ---------- app layout ---------- */
-.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100vh; }   /* same list width as agreements.html */
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr); height: 100dvh; }   /* same list width as agreements.html */
 .invlist { overflow: auto; background: #fff; padding: 16px; }
 .main { position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .preview { position: relative; flex: 1; overflow: auto; padding: 16px 28px 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; background: #fff; }
@@ -113,17 +113,33 @@
 .t-add-host { position: relative; width: 100%; }
 .page.editable .t-add .ghost { padding: 0; line-height: 16pt; }
 
+/* Touch and narrow screens: the desktop layout, with the window scrolling in both directions (see components.css) */
+@media (pointer: coarse), (max-width: 720px) {
+  .app { width: max-content; min-width: 100%; height: auto; min-height: 100dvh; }
+  .main, .preview, .invlist { overflow: visible; height: auto; }
+  .preview { min-width: 980px; }   /* never squeeze the document: the window scrolls to it instead */
+  .page.editable .blk-chip, .page.editable .ghost, .page.editable .row-x, .page.editable .model-tabs, .page.editable .t-add { opacity: 1; }
+}
+
 @media print {
   html, body { background: #fff; height: auto; overflow: visible; }
   .blk-chip, .ghost, .ghost-host, .model-tabs, .row-x, .t-add, .pg-chips, .pv-tools, .pop, .toast, .banner, dialog { display: none !important; }
   .ed { outline: none !important; background: none !important; padding: 0 !important; margin: 0 !important; }
-  .app { display: block; height: auto; }
+  .app, body.has-banner .app { display: block; height: auto; padding-top: 0; }   /* the banner reserves 57px above the app on screen; on paper that pushed the last lines onto a second sheet */
   .invlist { display: none !important; }
   .main { display: block; overflow: visible; height: auto; }
   .preview { display: block !important; padding: 0; overflow: visible; }
   .scaleBox { width: auto !important; height: auto !important; }
   .scale { transform: none !important; }
-  .page { border: 0; }
+  .page { border: 0; min-height: 841pt; }   /* A4 is 841.89pt; 842pt spills the last line onto a second sheet */
+  /* Chrome rounds any border thinner than 1px up to a full pixel when printing, so the 0.5pt rules came out 0.75pt.
+     Keep the borders for layout but make them transparent, and draw each rule as a 1px box scaled to 0.5pt: transforms keep their fraction. */
+  .t-head th, .t-row td, .t-total td, .sig-name { border-color: transparent; position: relative; }
+  .t-head th::after, .t-row td::after, .t-total td::before, .sig-name::before { content: ""; position: absolute; left: 0; right: 0; height: 1px; background: var(--rule); transform: scaleY(.6667); }
+  .t-head th::after, .t-row td::after { bottom: -0.5pt; transform-origin: bottom; }
+  .t-total td::before, .sig-name::before { top: -0.5pt; transform-origin: top; }
+  .t-head th::after, .t-total td::before { background: var(--rule-dark); }
+  .t-total.alone td::before { display: none; }
 }
 </style>
 </head>
