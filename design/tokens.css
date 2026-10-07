@@ -22,6 +22,7 @@
   --accent: #1855e4;     /* document accent only; the UI has no accent colour */
   --accent-soft: #eef3ff;
   --danger: #b3261e;
+  --warn: #e0a100;       /* draft dots, and the mark on the small-screen notice */
 
   /* inverted surfaces (toast, popover, date picker, tooltip): the same contrast ratios as the
      values above have against white, measured against --bg-inverse. Opacities differ because

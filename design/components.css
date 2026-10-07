@@ -39,7 +39,7 @@ a.btn { text-decoration: none; }   /* links styled as buttons underline on hover
 .row:hover .n { text-decoration-color: var(--ink-secondary); }
 .row.on .n { text-decoration-color: var(--ink-primary); }
 .row .sub { color: var(--ink-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row .dot { width: 7px; height: 7px; border-radius: 50%; background: #e0a100; flex: none; }
+.row .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
 .btn.row-action { position: absolute; right: 0; top: 10px; }
 .row.enter, .row.leave { overflow: hidden; }
 
@@ -154,5 +154,6 @@ body.has-banner .app { padding-top: var(--banner-h); }   /* the page starts unde
 @media (pointer: coarse) and (max-width: 1024px), (max-width: 720px) {
   body.desktop-only > :not(.small-screen) { display: none !important; }
   body.desktop-only .small-screen { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 24px; padding: 24px; background: var(--bg); }
+  .small-screen .mark { background: var(--warn); }   /* the same amber as a draft dot: this is a warning, not the product */
   .small-screen p { margin: 0; max-width: 260px; color: var(--ink-secondary); }
 }
