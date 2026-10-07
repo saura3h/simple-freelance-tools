@@ -70,10 +70,6 @@
         ? `A live demo with sample data. Try anything: nothing is saved, and the invoice still prints.`
         : `You are looking at sample data. Nothing you change here is saved.`),
       el('span', { class: 'spacer' }), action));
-    // the line wraps on a narrow screen, so the room the app leaves for it is measured, not assumed
-    const bar = document.querySelector('.banner');
-    const fit = () => document.documentElement.style.setProperty('--banner-h', bar.offsetHeight + 'px');
-    fit(); new ResizeObserver(fit).observe(bar);
   }
 
   window.dataset = { mode, mock, demo, own: !mock, choose, banner, loadFiles, buffer, home, scope, key, repo: REPO };

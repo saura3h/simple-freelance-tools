@@ -113,13 +113,6 @@
 .t-add-host { position: relative; width: 100%; }
 .page.editable .t-add .ghost { padding: 0; line-height: 16pt; }
 
-/* Touch and narrow screens: the desktop layout, with the window scrolling in both directions (see components.css) */
-@media (pointer: coarse), (max-width: 720px) {
-  .app { width: max-content; min-width: 100%; height: auto; min-height: 100dvh; }
-  .main, .preview, .invlist { overflow: visible; height: auto; }
-  .preview { min-width: 980px; }   /* never squeeze the document: the window scrolls to it instead */
-  .page.editable .blk-chip, .page.editable .ghost, .page.editable .row-x, .page.editable .model-tabs, .page.editable .t-add { opacity: 1; }
-}
 
 @media print {
   html, body { background: #fff; height: auto; overflow: visible; }
@@ -143,7 +136,12 @@
 }
 </style>
 </head>
-<body>
+<body class="desktop-only">
+<!-- a phone cannot show a full-size document beside a list, so it gets this instead (see components.css) -->
+<div class="small-screen">
+  <div class="mark" aria-hidden="true"></div>
+  <p>This tool needs a desktop. The document is shown at full size next to your list, which does not fit a phone.</p>
+</div>
 <div class="app" id="app">
   <aside class="invlist" id="invlist"></aside>
 

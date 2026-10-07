@@ -107,12 +107,6 @@ input[type=number] { -moz-appearance: textfield; }
 .flow > .b:first-child { padding-top: 0; }
 .ph { color: var(--accent); }
 
-/* Touch and narrow screens: the desktop layout, with the window scrolling in both directions (see components.css) */
-@media (pointer: coarse), (max-width: 720px) {
-  .app { width: max-content; min-width: 100%; height: auto; min-height: 100dvh; }
-  .main, .preview, .sidebar, .clist, .side { overflow: visible; height: auto; }
-  .preview { min-width: 980px; }   /* never squeeze the document: the window scrolls to it instead */
-}
 
 @media print {
   html, body { background: #fff; height: auto; overflow: visible; }
@@ -131,7 +125,12 @@ input[type=number] { -moz-appearance: textfield; }
 }
 </style>
 </head>
-<body>
+<body class="desktop-only">
+<!-- a phone cannot show a full-size document beside a list, so it gets this instead (see components.css) -->
+<div class="small-screen">
+  <div class="mark" aria-hidden="true"></div>
+  <p>This tool needs a desktop. The document is shown at full size next to your list, which does not fit a phone.</p>
+</div>
 <div class="app" id="app">
   <aside class="sidebar">
     <div class="clist" id="clist"></div>
@@ -644,10 +643,7 @@ function renderPage() {
 }
 function fitPreview() {
   const pv = $('preview'), box = $('scaleBox'), sc = $('scale'), holder = sc.firstElementChild; if (!holder) return;
-  // On a touch or narrow screen the page keeps its full size and the window scrolls sideways; shrinking it to fit
-  // would leave 9pt text unreadable.
-  const wide = !matchMedia('(pointer: coarse), (max-width: 720px)').matches;
-  const pw = 595 * 96 / 72, s = wide ? Math.min(14 / 12, (pv.clientWidth - 56) / pw) : 14 / 12;
+  const pw = 595 * 96 / 72, s = Math.min(14 / 12, (pv.clientWidth - 56) / pw); // 9pt body shows at 14px when there is room
   sc.style.transform = `scale(${s})`; sc.style.width = pw + 'px';
   box.style.width = pw * s + 'px'; box.style.height = holder.offsetHeight * s + 'px'; $('pvTools').style.width = pw * s + 'px';
 }

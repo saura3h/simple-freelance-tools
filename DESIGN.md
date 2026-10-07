@@ -90,16 +90,11 @@ A product whose document is read-only opens it in a view mode. An Edit button si
 
 Both products open on sample data built into their seeds and show a banner flush across the top of the window: one line saying nothing is saved and a primary button that switches to the reader's own data for good, with a hairline the full width under it (`.banner`, 57px tall, hidden in print). The app below it starts under the banner. The sample set is never written to storage or to the data folder, so it cannot mix with real data; `?mock` in the address brings it back. Everything the browser keeps is named after the folder the page was opened from, so two copies of a product never share a data folder or a buffer. See `shared/dataset.js`.
 
-## Touch and narrow screens
+## Small screens
 
-There is no second layout. Below 720px, or on any touch pointer, the desktop layout stays as it is and the window scrolls in both directions: the document keeps its full size rather than shrinking to a width where 9pt text cannot be read. What changes is the chrome.
+These are desktop tools and they say so. A phone or a portrait tablet gets one screen: the 8px mark and a line explaining that the document is shown at full size next to the list, which a phone cannot do. The app itself is not rendered.
 
-- Nothing hides behind hover: row and picker actions, the Change links, "Add item", the model tabs and the × on a line item are all visible.
-- Dialogs and popovers (the date picker included) become sheets at the bottom edge: 8px from the sides and the bottom, 8px from the top once they are tall enough, scrolling inside.
-- Inputs are 16px, because Safari zooms the page when a smaller field is focused.
-- Heights use `dvh`, and the sample-data banner reports its own height so a wrapped line still pushes the app down by the right amount.
-
-Saving to a data folder is desktop-only, so a phone is for looking things up and printing.
+A tool opts in with `class="desktop-only"` on its body and a `.small-screen` block as the first child; the rule hides every other child of the body. The threshold is any screen under 720px, plus any touch screen under 1024px, so a phone in landscape is covered and a large touch laptop is not. The home page is plain text and links, so it has no notice and works anywhere.
 
 ## Icons
 
