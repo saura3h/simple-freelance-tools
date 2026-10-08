@@ -67,7 +67,7 @@
       : el('button', { class: 'btn', type: 'button', onclick: choose }, `Start creating your own ${what}`);
     document.body.prepend(el('div', { class: 'banner' },
       el('span', {}, demo
-        ? `A live demo with sample data. Try anything: nothing is saved, and the invoice still prints.`
+        ? `This is a demo with sample data. You can change whatever you like, nothing is saved.`
         : `You are looking at sample data. Nothing you change here is saved.`),
       el('span', { class: 'spacer' }), action));
   }
